@@ -1,8 +1,7 @@
--- [[ Nhaz Hub - Ultimate Edition ]]
--- Clean UI | Anti Trap/Guard | Run & Steal Back | Drop/Pickup | Real Values
+-- [[ Nhaz Hub - Error Free & Fast UI ]]
+-- Lightweight | No Pathfinding Lag | Clean UI | Real Values
 
 local Players = game:GetService("Players")
-local PathfindingService = game:GetService("PathfindingService")
 local CoreGui = game:GetService("CoreGui")
 local LP = Players.LocalPlayer
 
@@ -12,14 +11,14 @@ local IsSlowMode = false
 local AntiTrap = true
 local AntiGuard = true
 
-local RunSpeedFast = 150
-local RunSpeedSlow = 60
+local RunSpeedFast = 120
+local RunSpeedSlow = 50
 local DropTimer = 0
 
--- មុខងារបំប្លែងអក្សរទៅជាលេខ (សម្រាប់តម្រៀប)
+-- មុខងារបំប្លែងអក្សរទៅជាលេខ
 local function ParseValue(str)
     if not str then return 0 end
-    local text = str:lower():gsub("%s+", "")
+    local text = str:lower():gsub(",", ""):gsub("%s+", "")
     local num = tonumber(text:match("([%d%.]+)"))
     if not num then return 0 end
     if text:find("k") then return num * 1000
@@ -30,7 +29,7 @@ local function ParseValue(str)
     else return num end
 end
 
--- UI Setup (តាមស្ទីលរូបទី១)
+-- UI Setup
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Nhaz_Hub"
 ScreenGui.ResetOnSpawn = false
@@ -73,7 +72,6 @@ Title.TextSize = 16
 
 ToggleBtn.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
 
--- ជួរទី១: Auto Steal និង Slow Mode
 local AutoBtn = Instance.new("TextButton", Main)
 AutoBtn.Size = UDim2.new(0.45, 0, 0, 30)
 AutoBtn.Position = UDim2.new(0.03, 0, 0, 45)
@@ -94,7 +92,6 @@ SlowModeBtn.Font = Enum.Font.SourceSansBold
 SlowModeBtn.TextSize = 12
 Instance.new("UICorner", SlowModeBtn).CornerRadius = UDim.new(0, 4)
 
--- ជួរទី២: Anti Guard និង Anti Trap
 local GuardBtn = Instance.new("TextButton", Main)
 GuardBtn.Size = UDim2.new(0.3, 0, 0, 25)
 GuardBtn.Position = UDim2.new(0.03, 0, 0, 80)
@@ -125,7 +122,6 @@ RefreshBtn.Font = Enum.Font.SourceSansBold
 RefreshBtn.TextSize = 11
 Instance.new("UICorner", RefreshBtn).CornerRadius = UDim.new(0, 4)
 
--- បញ្ជីពង
 local Scroll = Instance.new("ScrollingFrame", Main)
 Scroll.Size = UDim2.new(1, -20, 1, -160)
 Scroll.Position = UDim2.new(0, 10, 0, 115)
@@ -147,35 +143,33 @@ Status.TextXAlignment = Enum.TextXAlignment.Left
 task.wait(0.1)
 Main.Visible = true
 
--- ស្កេនរកពងក្នុង Map (កាត់ Shop/Base ចោល)
 local function ScanMapEggs()
     local found = {}
     local seen = {}
     
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if (obj:IsA("Model") or obj:IsA("Part") or obj:IsA("MeshPart")) and obj.Name:lower():find("egg") then
-            local cleanName = obj.Name
-            local parentName = (obj.Parent and obj.Parent.Name or ""):lower()
-            
-            -- ឆែកថាតើមាន ProximityPrompt សម្រាប់ចុចលួចឬអត់
-            local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
-            local isBlacklisted = cleanName:lower():find("shop") or cleanName:lower():find("base") or parentName:find("base") or parentName:find("plot") or cleanName:lower():find("firstarea")
-            
-            if prompt and not isBlacklisted and not seen[cleanName] then
-                seen[cleanName] = true
-                local valueStr = "Unknown"
-                local valueNum = 0
-                
-                local bb = obj:FindFirstChildWhichIsA("BillboardGui", true)
-                if bb then
-                    local lbl = bb:FindFirstChildWhichIsA("TextLabel", true)
-                    if lbl and lbl.Text ~= "" then valueStr = lbl.Text end
-                end
-                
-                valueNum = ParseValue(valueStr)
-                
-                if valueNum > 0 then
-                    table.insert(found, {Model = obj, Name = cleanName:gsub(" Egg", ""), ValueStr = valueStr, ValueNum = valueNum})
+    -- ប្រើ GetChildren ជំនួស GetDescendants ដើម្បីកុំឱ្យធ្ងន់
+    for _, folder in ipairs(workspace:GetChildren()) do
+        if folder:IsA("Folder") or folder:IsA("Model") then
+            for _, obj in ipairs(folder:GetDescendants()) do
+                if (obj:IsA("Model") or obj:IsA("Part")) and obj.Name:lower():find("egg") then
+                    local cleanName = obj.Name
+                    local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    local isBlacklisted = cleanName:lower():find("shop") or cleanName:lower():find("base") or cleanName:lower():find("firstarea")
+                    
+                    if prompt and not isBlacklisted and not seen[cleanName] then
+                        seen[cleanName] = true
+                        local valueStr = "Unknown"
+                        local bb = obj:FindFirstChildWhichIsA("BillboardGui", true)
+                        if bb then
+                            local lbl = bb:FindFirstChildWhichIsA("TextLabel", true)
+                            if lbl and lbl.Text ~= "" then valueStr = lbl.Text end
+                        end
+                        
+                        local valueNum = ParseValue(valueStr)
+                        if valueNum > 0 then
+                            table.insert(found, {Model = obj, Name = cleanName:gsub(" Egg", ""), ValueStr = valueStr, ValueNum = valueNum})
+                        end
+                    end
                 end
             end
         end
@@ -239,7 +233,6 @@ end
 task.spawn(function() task.wait(1) UpdateUI() end)
 RefreshBtn.MouseButton1Click:Connect(UpdateUI)
 
--- Toggle Buttons
 SlowModeBtn.MouseButton1Click:Connect(function()
     IsSlowMode = not IsSlowMode
     SlowModeBtn.Text = "Slow Mode: "..(IsSlowMode and "ON" or "OFF")
@@ -279,60 +272,31 @@ AutoBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- មុខងាររត់វាងជញ្ជាំង
-local function RunToTarget(targetPos)
-    local Char = LP.Character
-    local Hum = Char and Char:FindFirstChild("Humanoid")
-    local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
-    if not Hum or not HRP then return end
-    
-    local path = PathfindingService:CreatePath({AgentRadius = 2, AgentHeight = 5, AgentCanJump = true})
-    local success = pcall(function() path:ComputeAsync(HRP.Position, targetPos) end)
-    
-    if success and path.Status == Enum.PathStatus.Success then
-        for _, waypoint in ipairs(path:GetWaypoints()) do
-            if not AutoSteal then break end
-            Hum:MoveTo(waypoint.Position)
-            if waypoint.Action == Enum.PathWaypointAction.Jump then Hum.Jump = true end
-            task.wait(0.2)
-        end
-    else
-        Hum:MoveTo(targetPos)
-    end
-end
-
--- Main Loop (Auto Steal, Anti Trap, Anti Guard, Drop/P _,ickup)
+-- Main Loop (ស្រាល មិនគាំង)
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.3) do -- បង្កើនពេលវេលា ដើម្បីកុំឱ្យធ្ងន់
         if AutoSteal and SelectedEggObj then
-            local Char = LP.Character m
+            local Char = LP.Character
             local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
             local Hum = Char and Char:FindFirstChild("Humanoid")
             
             if HRP and Hum then
                 if not SelectedEggObj.Parent then
-                    Status.Text = "Egg stolen! Finding new..."
+                    Status.Text = "Egg gone! Finding new..."
                     local eggs = ScanMapEggs()
                     if #eggs > 0 then SelectedEggObj = eggs[1].Model else AutoSteal = false end
                     task.wait(0.5)
                     continue
                 end
 
-                -- Anti Guard
-                if AntiGuard then
-                    for in ipairs(workspace:GetDescendants()) do
-                        if m:IsA("Model") and (m.Name:lower():find("guard") or m.Name:lower():find("police") or m.Name:lower():find("tiger")) then
-                            local root = m:FindFirstChild("HumanoidRootPart")
-                            if root and (HRP.Position - root.Position).Magnitude < 25 then Hum.Jump = true end
-                        end
-                    end
-                end
-                
-                -- Anti Trap
-                if AntiTrap then
-                    for _, t in ipairs(workspace:GetDescendants()) do
-                        if t:IsA("Part") and (t.Name:lower():find("trap") or t.Name:lower():find("spike")) then
-                            if (HRP.Position - t.Position).Magnitude < 15 then Hum.Jump = true end
+                -- កាត់បន្ថយការស្កេន Guard/Trap ដែលធ្ងន់ (ធ្វើតែពេលចាំបាច់)
+                if AntiGuard or AntiTrap then
+                    for _, m in ipairs(workspace:GetChildren()) do
+                        if m:IsA("Model") and (m.Name:lower():find("guard") or m.Name:lower():find("trap")) then
+                            local root = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChildWhichIsA("BasePart")
+                            if root and (HRP.Position - root.Position).Magnitude < 20 then
+                                Hum.Jump = true
+                            end
                         end
                     end
                 end
@@ -344,45 +308,40 @@ task.spawn(function()
                 if dist > 6 then
                     Status.Text = "Running to: "..SelectedEggObj.Name
                     Hum.WalkSpeed = IsSlowMode and RunSpeedSlow or RunSpeedFast
-                    RunToTarget(targetPos)
+                    Hum:MoveTo(targetPos) -- ប្រើ MoveTo ធម្មតាជំនួស Pathfinding
                     
-                    -- ទម្លាក់ និងរើសពងវិញរាល់ ៤ វិនាទី
-                    DropTimer = DropTimer + 0.1
+                    DropTimer = DropTimer + 0.3
                     if DropTimer >= 4 then
                         DropTimer = 0
-                        Status.Text = "Dropping & Equipping Egg..."
-                        Hum:UnequipTools()
+                        Status.Text = "Dropping & Equipping..."
+                        pcall(function() Hum:UnequipTools() end)
                         task.wait(0.1)
                         local Backpack = LP:FindFirstChild("Backpack")
                         if Backpack then
                             for _, tool in ipairs(Backpack:GetChildren()) do
-                                if tool:IsA("Tool") then Hum:EquipTool(tool) break end
+                                if tool:IsA("Tool") then pcall(function() Hum:EquipTool(tool) end) break end
                             end
                         end
                     end
                 else
-                    Hum:MoveTo(HRP.Position) -- ឈប់រត់
+                    Hum:MoveTo(HRP.Position)
                     Status.Text = "Stealing: "..SelectedEggObj.Name
                     
                     for _, v in pairs(SelectedEggObj:GetDescendants()) do
                         if v:IsA("ProximityPrompt") then
                             v.HoldDuration = 0
                             v.MaxActivationDistance = 50
-                            v.Enabled = true
                             pcall(function() fireproximityprompt(v) end)
                         end
                     end
                     
                     task.wait(0.5)
                     
-                    -- រត់ត្រឡប់មកវិញ
                     Status.Text = "Running back..."
                     Hum.WalkSpeed = IsSlowMode and RunSpeedSlow or RunSpeedFast
-                    local backPos = HRP.Position + (HRP.Position - targetPos).Unit * 50
-                    Hum:MoveTo(backPos)
+                    Hum:MoveTo(HRP.Position + (HRP.Position - targetPos).Unit * 30)
                     task.wait(0.5)
                     
-                    -- រើសពងថ្មីបន្ត
                     local eggs = ScanMapEggs()
                     if #eggs > 0 then SelectedEggObj = eggs[1].Model else SelectedEggObj = nil end
                 end
