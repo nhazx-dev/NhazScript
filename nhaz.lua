@@ -1,5 +1,5 @@
--- [[ Nhaz Auto Steal - Final Run Drop & Pickup ]]
--- Run Continuous | Drop & Pickup Every 4s | Real Values | Zone Filter
+-- [[ Nhaz Auto Steal - Billboard Scanner & Fix ]]
+-- Scans real map eggs | Run & Steal | Drop/Pickup | Reset Speed
 
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
@@ -7,13 +7,8 @@ local LP = Players.LocalPlayer
 
 local AutoSteal = false
 local SelectedEggObj = nil
-local RunSpeed = 180 -- ល្បឿនរត់លឿន (មិនដល់ Teleport)
+local RunSpeed = 150
 local DropTimer = 0
-
--- តំបន់ដែលអនុញ្ញាត (Jungle ដល់ Enchanted Forest)
-local AllowedZones = {
-    "jungle", "snow", "volcano", "abyss", "prehistoric", "cosmic", "cherry", "titan", "enchanted"
-}
 
 -- មុខងារបំប្លែងអក្សរទៅជាលេខ
 local function ParseValue(str)
@@ -28,90 +23,57 @@ local function ParseValue(str)
     else return num end
 end
 
--- ស្កេនរកពង និងអានតម្លៃពិត
+-- ស្កេនរកពងពិតៗក្នុង Map (កាត់ពងក្នុង Base ចោល)
 local function ScanMapEggs()
     local found = {}
     local seen = {}
     
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if (obj:IsA("Model") or obj:IsA("Part") or obj:IsA("MeshPart")) and obj.Name:lower():find("egg") then
-            local cleanName = obj.Name
-            local parentName = (obj.Parent and obj.Parent.Name or ""):lower()
+        if (obj:IsA("Model") or obj:IsA("Part") or obj:IsA("MeshPart")) then
             
-            -- កាត់ពងដែលនៅក្នុង Base ឬ Spawn ចោល
-            if not parentName:find("base") and not parentName:find("spawn") and not seen[cleanName] then
-                seen[cleanName] = true
+            -- ឆែកមើលថាតើវាមាន ProximityPrompt (សម្រាប់ចុចលួច) ឬអត់
+            local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
+            
+            if prompt then
+                local cleanName = obj.Name
+                local parentName = (obj.Parent and obj.Parent.Name or ""):lower()
                 
-                local valueStr = "Unknown"
-                local valueNum = 0
-                local eggType = "Common"
-                local validZone = false
-                
-                -- ឆែកមើល Zone
-                for _, z in ipairs(AllowedZones) do
-                    if cleanName:lower():find(z) then validZone = true break end
-                end
-
-                if cleanName:lower():find("divine") then eggType = "Divine"
-                elseif cleanName:lower():find("eternal") then eggType = "Eternal"
-                elseif cleanName:lower():find("legendary") then eggType = "Legendary"
-                elseif cleanName:lower():find("epic") then eggType = "Epic"
-                elseif cleanName:lower():find("rare") then eggType = "Rare"
-                end
-                
-                -- អានតម្លៃពិតពី BillboardGui ឬ TextLabel
-                local billboard = obj:FindFirstChildWhichIsA("BillboardGui", true)
-                if billboard then
-                    local lbl = billboard:FindFirstChildWhichIsA("TextLabel", true)
-                    if lbl and lbl.Text ~= "" then valueStr = lbl.Text end
-                else
-                    for _, desc in ipairs(obj:GetDescendants()) do
-                        if desc:IsA("TextLabel") and (desc.Text:find("/s") or desc.Text:find("M") or desc.Text:find("B") or desc.Text:find("K") or desc.Text:find("T")) then
-                            valueStr = desc.Text
-                            break
+                -- កាត់ពងដែលនៅក្នុង Base ឬ Spawn ចោល
+                if not parentName:find("base") and not parentName:find("plot") and not cleanName:lower():find("base") and not seen[cleanName] then
+                    
+                    local valueStr = "Unknown"
+                    local displayName = cleanName:gsub(" Egg", ""):gsub("_", " ")
+                    
+                    -- អានតម្លៃពិតពី BillboardGui
+                    local bb = obj:FindFirstChildWhichIsA("BillboardGui", true)
+                    if bb then
+                        local lbl = bb:FindFirstChildWhichIsA("TextLabel", true)
+                        if lbl and lbl.Text ~= "" then 
+                            valueStr = lbl.Text 
                         end
                     end
-                end
-                
-                valueNum = ParseValue(valueStr)
-                
-                if validZone or valueNum > 0 then
+                    
+                    -- បើឈ្មោះអត់ស្អាត (ដូចជា FirstAreaEgg...) ឱ្យវាយកឈ្មោះពី Billboard វិញ
+                    if displayName:find("FirstAreaEgg") then
+                        if bb and bb:FindFirstChildWhichIsA("TextLabel") then
+                            displayName = bb.TextLabel.Text:gsub("/s", ""):gsub("%d", ""):gsub("M", ""):gsub("B", ""):gsub("T", "")
+                        end
+                    end
+                    
+                    seen[cleanName] = true
                     table.insert(found, {
                         Model = obj, 
-                        Name = cleanName:gsub(" Egg", ""), 
+                        Name = displayName, 
                         ValueStr = valueStr, 
-                        ValueNum = valueNum, 
-                        Type = eggType
+                        ValueNum = ParseValue(valueStr)
                     })
                 end
             end
         end
     end
+    
     table.sort(found, function(a, b) return a.ValueNum > b.ValueNum end)
     return found
-end
-
--- មុខងារទម្លាក់ និងរើសពងឡើងវិញ
-local function DropAndPickup()
-    local Char = LP.Character
-    if not Char then return end
-    local Hum = Char:FindFirstChild("Humanoid")
-    if not Hum then return end
-    
-    -- ទម្លាក់ពង (ដកចេញពីដៃ)
-    Hum:UnequipTools()
-    task.wait(0.1)
-    
-    -- រើសពងឡើងវិញពីកាបូប
-    local Backpack = LP:FindFirstChild("Backpack")
-    if Backpack then
-        for _, tool in ipairs(Backpack:GetChildren()) do
-            if tool:IsA("Tool") then
-                Hum:EquipTool(tool)
-                break
-            end
-        end
-    end
 end
 
 -- UI Setup
@@ -153,9 +115,19 @@ AutoBtn.Font = Enum.Font.SourceSansBold
 AutoBtn.TextSize = 14
 Instance.new("UICorner", AutoBtn).CornerRadius = UDim.new(0, 6)
 
+local RefreshBtn = Instance.new("TextButton", Main)
+RefreshBtn.Size = UDim2.new(0.4, 0, 0, 25)
+RefreshBtn.Position = UDim2.new(0.55, 0, 0, 50)
+RefreshBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
+RefreshBtn.Text = "Refresh Eggs"
+RefreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+RefreshBtn.Font = Enum.Font.SourceSansBold
+RefreshBtn.TextSize = 12
+Instance.new("UICorner", RefreshBtn).CornerRadius = UDim.new(0, 4)
+
 local Scroll = Instance.new("ScrollingFrame", Main)
-Scroll.Size = UDim2.new(1, -20, 1, -120)
-Scroll.Position = UDim2.new(0, 10, 0, 55)
+Scroll.Size = UDim2.new(1, -20, 1, -160)
+Scroll.Position = UDim2.new(0, 10, 0, 85)
 Scroll.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 Scroll.BorderSizePixel = 0
 Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -180,10 +152,10 @@ local function UpdateUI()
         local Btn = Instance.new("TextButton", Scroll)
         Btn.Size = UDim2.new(1, -10, 0, 35)
         Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-        Btn.Text = "["..data.Type.."] "..data.Name.." ("..data.ValueStr..")"
+        Btn.Text = data.Name.." ("..data.ValueStr..")"
         Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
         Btn.Font = Enum.Font.SourceSansBold
-        Btn.TextSize = 11
+        Btn.TextSize = 12
         Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4)
 
         Btn.MouseButton1Click:Connect(function()
@@ -200,6 +172,7 @@ local function UpdateUI()
     Scroll.CanvasSize = UDim2.new(0, 0, 0, #MapEggs * 40)
 end
 
+RefreshBtn.MouseButton1Click:Connect(UpdateUI)
 UpdateUI()
 
 AutoBtn.MouseButton1Click:Connect(function()
@@ -212,18 +185,19 @@ AutoBtn.MouseButton1Click:Connect(function()
         if #eggs > 0 then SelectedEggObj = eggs[1].Model end
     end
     
+    -- កែបញ្ហាដើរយឺតពេលបិទ Auto
     if not AutoSteal then
         Status.Text = "Status: Stopped"
         local Char = LP.Character
         local Hum = Char and Char:FindFirstChild("Humanoid")
         if Hum then 
-            Hum.WalkSpeed = 16 
+            Hum.WalkSpeed = 16 -- ត្រឡប់មកល្បឿនធម្មតា
             Hum:MoveTo(Char.HumanoidRootPart.Position) 
         end
     end
 end)
 
--- Main Loop (រត់ជាប់ជានិច្ច គ្មានឈប់)
+-- Main Loop
 task.spawn(function()
     while task.wait(0.1) do
         if AutoSteal and SelectedEggObj then
@@ -232,28 +206,54 @@ task.spawn(function()
             local Hum = Char and Char:FindFirstChild("Humanoid")
             
             if HRP and Hum then
-                -- បើពងនោះបាត់ រកពងថ្មី
+                -- បើពងនោះបាត់ (ប្រែក្លាយជាសត្វ) រកពងថ្មី
                 if not SelectedEggObj.Parent then
-                    Status.Text = "Egg gone! Finding new one..."
+                    Status.Text = "Egg stolen! Finding new one..."
                     local eggs = ScanMapEggs()
-                    if #eggs > 0 then SelectedEggObj = eggs[1].Model else AutoSteal = false end
-                    task.wait(1)
+                    if #eggs > 0 then 
+                        SelectedEggObj = eggs[1].Model 
+                    else 
+                        SelectedEggObj = nil 
+                        AutoSteal = false 
+                        AutoBtn.Text = "Auto Steal: OFF"
+                        AutoBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+                        Hum.WalkSpeed = 16
+                    end
+                    task.wait(0.5)
                     continue
                 end
 
                 local eggPart = SelectedEggObj:FindFirstChildWhichIsA("BasePart") or SelectedEggObj
                 local targetPos = eggPart.Position
-                
-                -- ១. រត់ទៅរកពង
-                Status.Text = "Running to: "..SelectedEggObj.Name:gsub(" Egg", "")
-                Hum.WalkSpeed = RunSpeed
-                Hum:MoveTo(targetPos) 
-                
                 local dist = (HRP.Position - targetPos).Magnitude
-                if dist < 6 then
-                    -- ២. ពេលដល់ លួច (ឈប់រត់តែមួយភ្លែត)
-                    Hum:MoveTo(HRP.Position) 
-                    Status.Text = "Stealing: "..SelectedEggObj.Name:gsub(" Egg", "")
+                
+                if dist > 6 then
+                    -- រត់ទៅរកពង
+                    Status.Text = "Running to: "..SelectedEggObj.Name
+                    Hum.WalkSpeed = RunSpeed
+                    Hum:MoveTo(targetPos) 
+                    
+                    -- រាល់ពេលរត់បាន ៤ វិនាទី ទម្លាក់ និងរើសពងវិញ
+                    DropTimer = DropTimer + 0.1
+                    if DropTimer >= 4 then
+                        DropTimer = 0
+                        Status.Text = "Dropping & Picking up..."
+                        Hum:UnequipTools()
+                        task.wait(0.1)
+                        local Backpack = LP:FindFirstChild("Backpack")
+                        if Backpack then
+                            for _, tool in ipairs(Backpack:GetChildren()) do
+                                if tool:IsA("Tool") then
+                                    Hum:EquipTool(tool)
+                                    break
+                                end
+                            end
+                        end
+                    end
+                else
+                    -- ដល់ហើយ ចាប់ផ្តើមលួច
+                    Hum:MoveTo(HRP.Position) -- ឈប់រត់
+                    Status.Text = "Stealing: "..SelectedEggObj.Name
                     
                     for _, v in pairs(SelectedEggObj:GetDescendants()) do
                         if v:IsA("ProximityPrompt") then
@@ -261,38 +261,29 @@ task.spawn(function()
                             v.MaxActivationDistance = 50
                             v.Enabled = true
                             pcall(function() fireproximityprompt(v) end)
-                        elseif v:IsA("ClickDetector") then
-                            pcall(function() fireclickdetector(v) end)
                         end
                     end
                     
-                    task.wait(0.5) -- ចាំបន្តិចឱ្យវាចូលកាបូប
+                    task.wait(0.5) -- ចាំបន្តិចឱ្យហ្គេមដំណើរការ
                     
-                    -- ៣. រត់ត្រឡប់មកវិញ
-                    local backPos = HRP.Position + (HRP.Position - targetPos).Unit * 100 -- រត់ថយក្រោយ ១០០ ស្ទូឌ
+                    -- រត់ថយក្រោយវិញ
+                    Status.Text = "Running back..."
                     Hum.WalkSpeed = RunSpeed
+                    local backPos = HRP.Position + (HRP.Position - targetPos).Unit * 50
                     Hum:MoveTo(backPos)
+                    task.wait(0.5)
                     
-                    -- ៤. រាល់ពេលរត់បាន ៤ វិនាទី (៤ Zone) ទម្លាក់ និងរើសពងវិញ
-                    DropTimer = 0
-                    while (HRP.Position - backPos).Magnitude > 10 and AutoSteal do
-                        DropTimer = DropTimer + 0.1
-                        if DropTimer >= 4 then
-                            DropTimer = 0
-                            Status.Text = "Dropping & Picking up Egg..."
-                            DropAndPickup()
-                        end
-                        task.wait(0.1)
-                    end
-                    
-                    -- ៥. បន្ទាប់ពីរត់ថយក្រោយរួច រើសពងថ្មីបន្ត
+                    -- រើសពងថ្មីបន្ត
                     local eggs = ScanMapEggs()
-                    if #eggs > 0 then SelectedEggObj = eggs[1].Model end
+                    if #eggs > 0 then SelectedEggObj = eggs[1].Model else SelectedEggObj = nil end
                 end
             end
         else
+            -- ធានាថាល្បឿនត្រឡប់មកធម្មតាពេលបិទ
             local Hum = LP.Character and LP.Character:FindFirstChild("Humanoid")
-            if Hum and Hum.WalkSpeed ~= 16 then Hum.WalkSpeed = 16 end
+            if Hum and Hum.WalkSpeed ~= 16 and not AutoSteal then 
+                Hum.WalkSpeed = 16 
+            end
         end
     end
 end)
