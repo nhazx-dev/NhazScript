@@ -1,5 +1,5 @@
--- [[ Nhaz Auto Steal - Run Mode & Fixed Scanner ]]
--- Run on ground | Anti Trap/Guard | Real Values | Stop 3 Zones
+-- [[ Nhaz Auto Steal - Final Run Drop & Pickup ]]
+-- Run Continuous | Drop & Pickup Every 4s | Real Values | Zone Filter
 
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
@@ -7,16 +7,18 @@ local LP = Players.LocalPlayer
 
 local AutoSteal = false
 local SelectedEggObj = nil
-local StopZones = 3
-local CurrentZones = 0
-local RunSpeed = 80 -- ល្បឿនរត់ (មិនលឿនពេក មិនយឺតពេក)
-local AntiTrap = true
-local AntiGuard = true
+local RunSpeed = 180 -- ល្បឿនរត់លឿន (មិនដល់ Teleport)
+local DropTimer = 0
+
+-- តំបន់ដែលអនុញ្ញាត (Jungle ដល់ Enchanted Forest)
+local AllowedZones = {
+    "jungle", "snow", "volcano", "abyss", "prehistoric", "cosmic", "cherry", "titan", "enchanted"
+}
 
 -- មុខងារបំប្លែងអក្សរទៅជាលេខ
 local function ParseValue(str)
     if not str then return 0 end
-    local text = str:lower()
+    local text = str:lower():gsub("%s+", "")
     local num = tonumber(text:match("([%d%.]+)"))
     if not num then return 0 end
     if text:find("k") then return num * 1000
@@ -26,7 +28,7 @@ local function ParseValue(str)
     else return num end
 end
 
--- ស្កេនរកពងទាំងអស់ក្នុង Map (កែឱ្យស្កេនពេញលេញ)
+-- ស្កេនរកពង និងអានតម្លៃពិត
 local function ScanMapEggs()
     local found = {}
     local seen = {}
@@ -34,37 +36,82 @@ local function ScanMapEggs()
     for _, obj in ipairs(workspace:GetDescendants()) do
         if (obj:IsA("Model") or obj:IsA("Part") or obj:IsA("MeshPart")) and obj.Name:lower():find("egg") then
             local cleanName = obj.Name
-            -- ការពារកុំឱ្យវាស្កេនយកពងក្នុង Base (ជាទូទៅមានឈ្មោះថា Base ឬមានពាក្យថា Player)
-            local parentName = obj.Parent and obj.Parent.Name or ""
-            if not parentName:lower():find("base") and not parentName:lower():find("spawn") and not seen[cleanName] then
+            local parentName = (obj.Parent and obj.Parent.Name or ""):lower()
+            
+            -- កាត់ពងដែលនៅក្នុង Base ឬ Spawn ចោល
+            if not parentName:find("base") and not parentName:find("spawn") and not seen[cleanName] then
                 seen[cleanName] = true
                 
                 local valueStr = "Unknown"
                 local valueNum = 0
                 local eggType = "Common"
+                local validZone = false
                 
-                if obj.Name:lower():find("divine") then eggType = "Divine"
-                elseif obj.Name:lower():find("eternal") then eggType = "Eternal"
-                elseif obj.Name:lower():find("legendary") then eggType = "Legendary"
-                elseif obj.Name:lower():find("epic") then eggType = "Epic"
-                elseif obj.Name:lower():find("rare") then eggType = "Rare"
+                -- ឆែកមើល Zone
+                for _, z in ipairs(AllowedZones) do
+                    if cleanName:lower():find(z) then validZone = true break end
+                end
+
+                if cleanName:lower():find("divine") then eggType = "Divine"
+                elseif cleanName:lower():find("eternal") then eggType = "Eternal"
+                elseif cleanName:lower():find("legendary") then eggType = "Legendary"
+                elseif cleanName:lower():find("epic") then eggType = "Epic"
+                elseif cleanName:lower():find("rare") then eggType = "Rare"
                 end
                 
-                -- អានតម្លៃពិតពី Billboard ឬ TextLabel
-                for _, desc in ipairs(obj:GetDescendants()) do
-                    if desc:IsA("TextLabel") and (desc.Text:find("/s") or desc.Text:find("M") or desc.Text:find("B") or desc.Text:find("T") or desc.Text:find("K")) then
-                        valueStr = desc.Text
-                        valueNum = ParseValue(valueStr)
-                        break
+                -- អានតម្លៃពិតពី BillboardGui ឬ TextLabel
+                local billboard = obj:FindFirstChildWhichIsA("BillboardGui", true)
+                if billboard then
+                    local lbl = billboard:FindFirstChildWhichIsA("TextLabel", true)
+                    if lbl and lbl.Text ~= "" then valueStr = lbl.Text end
+                else
+                    for _, desc in ipairs(obj:GetDescendants()) do
+                        if desc:IsA("TextLabel") and (desc.Text:find("/s") or desc.Text:find("M") or desc.Text:find("B") or desc.Text:find("K") or desc.Text:find("T")) then
+                            valueStr = desc.Text
+                            break
+                        end
                     end
                 end
                 
-                table.insert(found, {Model = obj, Name = cleanName:gsub(" Egg", ""), ValueStr = valueStr, ValueNum = valueNum, Type = eggType})
+                valueNum = ParseValue(valueStr)
+                
+                if validZone or valueNum > 0 then
+                    table.insert(found, {
+                        Model = obj, 
+                        Name = cleanName:gsub(" Egg", ""), 
+                        ValueStr = valueStr, 
+                        ValueNum = valueNum, 
+                        Type = eggType
+                    })
+                end
             end
         end
     end
     table.sort(found, function(a, b) return a.ValueNum > b.ValueNum end)
     return found
+end
+
+-- មុខងារទម្លាក់ និងរើសពងឡើងវិញ
+local function DropAndPickup()
+    local Char = LP.Character
+    if not Char then return end
+    local Hum = Char:FindFirstChild("Humanoid")
+    if not Hum then return end
+    
+    -- ទម្លាក់ពង (ដកចេញពីដៃ)
+    Hum:UnequipTools()
+    task.wait(0.1)
+    
+    -- រើសពងឡើងវិញពីកាបូប
+    local Backpack = LP:FindFirstChild("Backpack")
+    if Backpack then
+        for _, tool in ipairs(Backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                Hum:EquipTool(tool)
+                break
+            end
+        end
+    end
 end
 
 -- UI Setup
@@ -106,40 +153,9 @@ AutoBtn.Font = Enum.Font.SourceSansBold
 AutoBtn.TextSize = 14
 Instance.new("UICorner", AutoBtn).CornerRadius = UDim.new(0, 6)
 
--- បន្ថែម Anti Trap & Guard
-local GuardBtn = Instance.new("TextButton", Main)
-GuardBtn.Size = UDim2.new(0.3, 0, 0, 25)
-GuardBtn.Position = UDim2.new(0, 10, 0, 50)
-GuardBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-GuardBtn.Text = "Guard: ON"
-GuardBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-GuardBtn.Font = Enum.Font.SourceSansBold
-GuardBtn.TextSize = 11
-Instance.new("UICorner", GuardBtn).CornerRadius = UDim.new(0, 4)
-
-local TrapBtn = Instance.new("TextButton", Main)
-TrapBtn.Size = UDim2.new(0.3, 0, 0, 25)
-TrapBtn.Position = UDim2.new(0.35, 0, 0, 50)
-TrapBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-TrapBtn.Text = "Trap: ON"
-TrapBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-TrapBtn.Font = Enum.Font.SourceSansBold
-TrapBtn.TextSize = 11
-Instance.new("UICorner", TrapBtn).CornerRadius = UDim.new(0, 4)
-
-local RefreshBtn = Instance.new("TextButton", Main)
-RefreshBtn.Size = UDim2.new(0.3, 0, 0, 25)
-RefreshBtn.Position = UDim2.new(0.7, 0, 0, 50)
-RefreshBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
-RefreshBtn.Text = "Refresh"
-RefreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-RefreshBtn.Font = Enum.Font.SourceSansBold
-RefreshBtn.TextSize = 12
-Instance.new("UICorner", RefreshBtn).CornerRadius = UDim.new(0, 4)
-
 local Scroll = Instance.new("ScrollingFrame", Main)
-Scroll.Size = UDim2.new(1, -20, 1, -160)
-Scroll.Position = UDim2.new(0, 10, 0, 85)
+Scroll.Size = UDim2.new(1, -20, 1, -120)
+Scroll.Position = UDim2.new(0, 10, 0, 55)
 Scroll.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 Scroll.BorderSizePixel = 0
 Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -155,7 +171,6 @@ Status.Font = Enum.Font.SourceSansBold
 Status.TextSize = 12
 Status.TextXAlignment = Enum.TextXAlignment.Left
 
--- បង្កើត UI
 local function UpdateUI()
     for _, c in pairs(Scroll:GetChildren()) do
         if c:IsA("TextButton") then c:Destroy() end
@@ -185,10 +200,8 @@ local function UpdateUI()
     Scroll.CanvasSize = UDim2.new(0, 0, 0, #MapEggs * 40)
 end
 
-RefreshBtn.MouseButton1Click:Connect(UpdateUI)
 UpdateUI()
 
--- Toggle Functions
 AutoBtn.MouseButton1Click:Connect(function()
     AutoSteal = not AutoSteal
     AutoBtn.Text = AutoSteal and "Auto Steal: ON" or "Auto Steal: OFF"
@@ -204,25 +217,13 @@ AutoBtn.MouseButton1Click:Connect(function()
         local Char = LP.Character
         local Hum = Char and Char:FindFirstChild("Humanoid")
         if Hum then 
-            Hum.WalkSpeed = 16 -- ត្រឡប់មកល្បឿនធម្មតាវិញ
-            Hum:MoveTo(Char.HumanoidRootPart.Position) -- បញ្ឈប់ការរត់
+            Hum.WalkSpeed = 16 
+            Hum:MoveTo(Char.HumanoidRootPart.Position) 
         end
     end
 end)
 
-GuardBtn.MouseButton1Click:Connect(function()
-    AntiGuard = not AntiGuard
-    GuardBtn.Text = "Guard: "..(AntiGuard and "ON" or "OFF")
-    GuardBtn.BackgroundColor3 = AntiGuard and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-end)
-
-TrapBtn.MouseButton1Click:Connect(function()
-    AntiTrap = not AntiTrap
-    TrapBtn.Text = "Trap: "..(AntiTrap and "ON" or "OFF")
-    TrapBtn.BackgroundColor3 = AntiTrap and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-end)
-
--- Main Loop (រត់លើដី + Anti Guard/Trap)
+-- Main Loop (រត់ជាប់ជានិច្ច គ្មានឈប់)
 task.spawn(function()
     while task.wait(0.1) do
         if AutoSteal and SelectedEggObj then
@@ -231,55 +232,26 @@ task.spawn(function()
             local Hum = Char and Char:FindFirstChild("Humanoid")
             
             if HRP and Hum then
-                -- បើពងនោះបាត់ (ត្រូវគេលួចមុន) រកពងថ្មី
+                -- បើពងនោះបាត់ រកពងថ្មី
                 if not SelectedEggObj.Parent then
                     Status.Text = "Egg gone! Finding new one..."
                     local eggs = ScanMapEggs()
-                    if #eggs > 0 then
-                        SelectedEggObj = eggs[1].Model
-                    else
-                        SelectedEggObj = nil
-                        AutoSteal = false
-                        AutoBtn.Text = "Auto Steal: OFF"
-                        AutoBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-                    end
+                    if #eggs > 0 then SelectedEggObj = eggs[1].Model else AutoSteal = false end
                     task.wait(1)
                     continue
-                end
-
-                -- Anti Guard (បើមាន Guard មកជិត លោតគេច)
-                if AntiGuard then
-                    for _, m in ipairs(workspace:GetDescendants()) do
-                        if m:IsA("Model") and (m.Name:lower():find("guard") or m.Name:lower():find("police") or m.Name:lower():find("tiger")) then
-                            local root = m:FindFirstChild("HumanoidRootPart")
-                            if root and (HRP.Position - root.Position).Magnitude < 25 then
-                                Hum.Jump = true
-                            end
-                        end
-                    end
-                end
-                
-                -- Anti Trap (បើមាន Trap ជិត លោតគេច)
-                if AntiTrap then
-                    for _, t in ipairs(workspace:GetDescendants()) do
-                        if t:IsA("Part") and (t.Name:lower():find("trap") or t.Name:lower():find("spike")) then
-                            if (HRP.Position - t.Position).Magnitude < 15 then
-                                Hum.Jump = true
-                            end
-                        end
-                    end
                 end
 
                 local eggPart = SelectedEggObj:FindFirstChildWhichIsA("BasePart") or SelectedEggObj
                 local targetPos = eggPart.Position
                 
+                -- ១. រត់ទៅរកពង
                 Status.Text = "Running to: "..SelectedEggObj.Name:gsub(" Egg", "")
                 Hum.WalkSpeed = RunSpeed
                 Hum:MoveTo(targetPos) 
                 
                 local dist = (HRP.Position - targetPos).Magnitude
                 if dist < 6 then
-                    -- ដល់ហើយ ឈប់រត់ ហើយលួច
+                    -- ២. ពេលដល់ លួច (ឈប់រត់តែមួយភ្លែត)
                     Hum:MoveTo(HRP.Position) 
                     Status.Text = "Stealing: "..SelectedEggObj.Name:gsub(" Egg", "")
                     
@@ -294,28 +266,33 @@ task.spawn(function()
                         end
                     end
                     
-                    task.wait(1.5) -- រង់ចាំបន្តិច
-                    CurrentZones = CurrentZones + 1
+                    task.wait(0.5) -- ចាំបន្តិចឱ្យវាចូលកាបូប
                     
-                    -- បើលួចបាន ៣ ដង ឈប់ឈរ
-                    if CurrentZones >= StopZones then
-                        Status.Text = "Resting..."
-                        Hum:MoveTo(HRP.Position) 
-                        task.wait(2)
-                        CurrentZones = 0
-                        
-                        -- រើសពងថ្មីដែលថ្លៃជាងគេ
-                        local eggs = ScanMapEggs()
-                        if #eggs > 0 then SelectedEggObj = eggs[1].Model end
+                    -- ៣. រត់ត្រឡប់មកវិញ
+                    local backPos = HRP.Position + (HRP.Position - targetPos).Unit * 100 -- រត់ថយក្រោយ ១០០ ស្ទូឌ
+                    Hum.WalkSpeed = RunSpeed
+                    Hum:MoveTo(backPos)
+                    
+                    -- ៤. រាល់ពេលរត់បាន ៤ វិនាទី (៤ Zone) ទម្លាក់ និងរើសពងវិញ
+                    DropTimer = 0
+                    while (HRP.Position - backPos).Magnitude > 10 and AutoSteal do
+                        DropTimer = DropTimer + 0.1
+                        if DropTimer >= 4 then
+                            DropTimer = 0
+                            Status.Text = "Dropping & Picking up Egg..."
+                            DropAndPickup()
+                        end
+                        task.wait(0.1)
                     end
+                    
+                    -- ៥. បន្ទាប់ពីរត់ថយក្រោយរួច រើសពងថ្មីបន្ត
+                    local eggs = ScanMapEggs()
+                    if #eggs > 0 then SelectedEggObj = eggs[1].Model end
                 end
             end
         else
-            -- បើបិទ Auto ធានាថាល្បឿនធម្មតា
             local Hum = LP.Character and LP.Character:FindFirstChild("Humanoid")
-            if Hum and Hum.WalkSpeed ~= 16 then 
-                Hum.WalkSpeed = 16 
-            end
+            if Hum and Hum.WalkSpeed ~= 16 then Hum.WalkSpeed = 16 end
         end
     end
 end)
