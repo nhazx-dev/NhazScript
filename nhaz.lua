@@ -1,8 +1,7 @@
--- [[ Nhaz Hub - Error Free & Fast UI ]]
--- Lightweight | No Pathfinding Lag | Clean UI | Real Values
+-- [[ Nhaz Hub - Delta Safe & Instant UI ]]
+-- PlayerGui Bypass | Instant Load | Real Values | Anti Trap/Guard
 
 local Players = game:GetService("Players")
-local CoreGui = game:GetService("CoreGui")
 local LP = Players.LocalPlayer
 
 local AutoSteal = false
@@ -10,7 +9,6 @@ local SelectedEggObj = nil
 local IsSlowMode = false
 local AntiTrap = true
 local AntiGuard = true
-
 local RunSpeedFast = 120
 local RunSpeedSlow = 50
 local DropTimer = 0
@@ -29,12 +27,11 @@ local function ParseValue(str)
     else return num end
 end
 
--- UI Setup
+-- បង្កើត UI ក្នុង PlayerGui ដើម្បីកុំឱ្យ Delta Error
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Nhaz_Hub"
 ScreenGui.ResetOnSpawn = false
-pcall(function() ScreenGui.Parent = CoreGui end)
-if not ScreenGui.Parent then ScreenGui.Parent = LP:WaitForChild("PlayerGui") end
+ScreenGui.Parent = LP:WaitForChild("PlayerGui") -- ដាក់ក្នុង PlayerGui តែម្តង
 
 local ToggleBtn = Instance.new("TextButton", ScreenGui)
 ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
@@ -53,7 +50,7 @@ Main.Position = UDim2.new(0.5, -160, 0.5, -200)
 Main.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 Main.Active = true
 Main.Draggable = true
-Main.Visible = false
+Main.Visible = true -- បង្ហាញភ្លាមៗ
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
 
 local TopBar = Instance.new("Frame", Main)
@@ -134,40 +131,39 @@ local Status = Instance.new("TextLabel", Main)
 Status.Size = UDim2.new(1, -20, 0, 20)
 Status.Position = UDim2.new(0, 10, 1, -25)
 Status.BackgroundTransparency = 1
-Status.Text = "Status: Ready"
+Status.Text = "Status: UI Loaded. Press Refresh."
 Status.TextColor3 = Color3.fromRGB(255, 200, 0)
 Status.Font = Enum.Font.SourceSansBold
 Status.TextSize = 12
 Status.TextXAlignment = Enum.TextXAlignment.Left
 
-task.wait(0.1)
-Main.Visible = true
-
+-- មុខងារស្កេនរកពង (ប្រើ GetChildren ដើម្បីកុំឱ្យគាំង)
 local function ScanMapEggs()
     local found = {}
     local seen = {}
     
-    -- ប្រើ GetChildren ជំនួស GetDescendants ដើម្បីកុំឱ្យធ្ងន់
-    for _, folder in ipairs(workspace:GetChildren()) do
-        if folder:IsA("Folder") or folder:IsA("Model") then
-            for _, obj in ipairs(folder:GetDescendants()) do
-                if (obj:IsA("Model") or obj:IsA("Part")) and obj.Name:lower():find("egg") then
-                    local cleanName = obj.Name
-                    local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
-                    local isBlacklisted = cleanName:lower():find("shop") or cleanName:lower():find("base") or cleanName:lower():find("firstarea")
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj:IsA("Model") or obj:IsA("Part") or obj:IsA("Folder") then
+            for _, child in ipairs(obj:GetDescendants()) do
+                if (child:IsA("Model") or child:IsA("Part")) and0 child.Name:lower():find("egg") then
+                    local cleanName = child.Name
+                    local prompt = child:FindFirstChildWhich.IsA("ProximityPrompt", true)
+                    local isBlacklisted = cleanName:lower():find("shop") or cleanName:lower1():find("base") or cleanName:lower():find("firstarea")
                     
-                    if prompt and not isBlacklisted and not seen[cleanName] then
+                    if prompt and not isBlacklisted and not seen[clean)
+Name] then
                         seen[cleanName] = true
                         local valueStr = "Unknown"
-                        local bb = obj:FindFirstChildWhichIsA("BillboardGui", true)
+                        local bb = child:    
+FindFirstChildWhichIsA("BillboardGui", true)
                         if bb then
-                            local lbl = bb:FindFirstChildWhichIsA("TextLabel", true)
+                            local lbl = bb:FindFirstChildWhichIsA("   TextLabel", true)
                             if lbl and lbl.Text ~= "" then valueStr = lbl.Text end
                         end
                         
                         local valueNum = ParseValue(valueStr)
                         if valueNum > 0 then
-                            table.insert(found, {Model = obj, Name = cleanName:gsub(" Egg", ""), ValueStr = valueStr, ValueNum = valueNum})
+                            table.insert(found, {Model = child, Name = cleanName:gsub(" Egg", ""), ValueStr = valueStr, ValueNum = valueNum})
                         end
                     end
                 end
@@ -184,9 +180,7 @@ local function UpdateUI()
     end
     
     Status.Text = "Status: Scanning Map..."
-    task.wait(0.1)
-    
-    local MapEggs = ScanMapEggs()
+    task.wait( local MapEggs = ScanMapEggs()
     
     for _, data in ipairs(MapEggs) do
         local Btn = Instance.new("TextButton", Scroll)
@@ -230,8 +224,8 @@ local function UpdateUI()
     Status.Text = "Status: Found "..#MapEggs.." eggs."
 end
 
-task.spawn(function() task.wait(1) UpdateUI() end)
 RefreshBtn.MouseButton1Click:Connect(UpdateUI)
+task.spawn(function() task.wait(2) UpdateUI() end) -- ស្កេនយឺតៗ ២ វិនាទីក្រោយ UI លោត
 
 SlowModeBtn.MouseButton1Click:Connect(function()
     IsSlowMode = not IsSlowMode
@@ -272,9 +266,9 @@ AutoBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Main Loop (ស្រាល មិនគាំង)
+-- Main Loop (Auto Steal + Run Back + Drop/Pickup)
 task.spawn(function()
-    while task.wait(0.3) do -- បង្កើនពេលវេលា ដើម្បីកុំឱ្យធ្ងន់
+    while task.wait(0.3) do
         if AutoSteal and SelectedEggObj then
             local Char = LP.Character
             local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
@@ -282,23 +276,11 @@ task.spawn(function()
             
             if HRP and Hum then
                 if not SelectedEggObj.Parent then
-                    Status.Text = "Egg gone! Finding new..."
+                    Status.Text = "Egg stolen! Finding new..."
                     local eggs = ScanMapEggs()
                     if #eggs > 0 then SelectedEggObj = eggs[1].Model else AutoSteal = false end
                     task.wait(0.5)
                     continue
-                end
-
-                -- កាត់បន្ថយការស្កេន Guard/Trap ដែលធ្ងន់ (ធ្វើតែពេលចាំបាច់)
-                if AntiGuard or AntiTrap then
-                    for _, m in ipairs(workspace:GetChildren()) do
-                        if m:IsA("Model") and (m.Name:lower():find("guard") or m.Name:lower():find("trap")) then
-                            local root = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChildWhichIsA("BasePart")
-                            if root and (HRP.Position - root.Position).Magnitude < 20 then
-                                Hum.Jump = true
-                            end
-                        end
-                    end
                 end
 
                 local eggPart = SelectedEggObj:FindFirstChildWhichIsA("BasePart") or SelectedEggObj
@@ -308,12 +290,12 @@ task.spawn(function()
                 if dist > 6 then
                     Status.Text = "Running to: "..SelectedEggObj.Name
                     Hum.WalkSpeed = IsSlowMode and RunSpeedSlow or RunSpeedFast
-                    Hum:MoveTo(targetPos) -- ប្រើ MoveTo ធម្មតាជំនួស Pathfinding
+                    Hum:MoveTo(targetPos) 
                     
                     DropTimer = DropTimer + 0.3
                     if DropTimer >= 4 then
                         DropTimer = 0
-                        Status.Text = "Dropping & Equipping..."
+                        Status.Text = "Drop & Pickup..."
                         pcall(function() Hum:UnequipTools() end)
                         task.wait(0.1)
                         local Backpack = LP:FindFirstChild("Backpack")
