@@ -1,21 +1,18 @@
--- [[ Nhaz Hub - Clean UI & True Map Eggs ]]
--- Pathfinding | No Shop Items | Slow Mode | Real Values
+-- [[ NHAZ HUB - Miranda Style UI ]]
+-- No Miranda Text | Real Values | Anti Trap/Guard | Steal & Stop
 
 local Players = game:GetService("Players")
-local PathfindingService = game:GetService("PathfindingService")
-local CoreGui = game:GetService("CoreGui")
 local LP = Players.LocalPlayer
 
 local AutoSteal = false
 local SelectedEggObj = nil
-local IsSlowMode = false
 local RunSpeedFast = 150
-local RunSpeedSlow = 60
+local DropTimer = 0
 
--- មុខងារបំប្លែងអក្សរទៅជាលេខ (សម្រាប់តម្រៀប)
+-- មុខងារបំប្លែងអក្សរទៅជាលេខ
 local function ParseValue(str)
     if not str then return 0 end
-    local text = str:lower():gsub("%s+", "")
+    local text = str:lower():gsub(",", ""):gsub("%s+", "")
     local num = tonumber(text:match("([%d%.]+)"))
     if not num then return 0 end
     if text:find("k") then return num * 1000
@@ -26,13 +23,13 @@ local function ParseValue(str)
     else return num end
 end
 
--- UI Setup (តាមស្ទីលរូបទី១)
+-- បង្កើត UI (PlayerGui)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Nhaz_Hub"
 ScreenGui.ResetOnSpawn = false
-pcall(function() ScreenGui.Parent = CoreGui end)
-if not ScreenGui.Parent then ScreenGui.Parent = LP:WaitForChild("PlayerGui") end
+ScreenGui.Parent = LP:WaitForChild("PlayerGui")
 
+-- ប៊ូតុងមូល Nhaz
 local ToggleBtn = Instance.new("TextButton", ScreenGui)
 ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
 ToggleBtn.Position = UDim2.new(0.1, 0, 0.2, 0)
@@ -44,121 +41,116 @@ ToggleBtn.TextSize = 14
 ToggleBtn.Draggable = true
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1, 0)
 
+-- ផ្ទាំង Menu
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 300, 0, 380)
-Main.Position = UDim2.new(0.5, -150, 0.5, -190)
-Main.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+Main.Size = UDim2.new(0, 320, 0, 450)
+Main.Position = UDim2.new(0.5, -160, 0.5, -225)
+Main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 Main.Active = true
 Main.Draggable = true
-Main.Visible = false
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
-
-local TopBar = Instance.new("Frame", Main)
-TopBar.Size = UDim2.new(1, 0, 0, 35)
-TopBar.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-TopBar.BorderSizePixel = 0
-Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 8)
-
-local Title = Instance.new("TextLabel", TopBar)
-Title.Size = UDim2.new(1, 0, 1, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "Nhaz Hub"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 16
+Main.Visible = true
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
 
 ToggleBtn.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
 
--- Buttons
-local AutoBtn = Instance.new("TextButton", Main)
-AutoBtn.Size = UDim2.new(0.45, 0, 0, 30)
-AutoBtn.Position = UDim2.new(0.03, 0, 0, 45)
-AutoBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-AutoBtn.Text = "Auto Steal: OFF"
-AutoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-AutoBtn.Font = Enum.Font.SourceSansBold
-AutoBtn.TextSize = 12
-Instance.new("UICorner", AutoBtn).CornerRadius = UDim.new(0, 4)
+-- ចំណងជើង NHAZ HUB
+local Title = Instance.new("TextLabel", Main)
+Title.Size = UDim2.new(1, 0, 0, 45)
+Title.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+Title.Text = "NHAZ HUB"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 22
+Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 10)
 
-local SlowModeBtn = Instance.new("TextButton", Main)
-SlowModeBtn.Size = UDim2.new(0.45, 0, 0, 30)
-SlowModeBtn.Position = UDim2.new(0.52, 0, 0, 45)
-SlowModeBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 40)
-SlowModeBtn.Text = "Slow Mode: OFF"
-SlowModeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-SlowModeBtn.Font = Enum.Font.SourceSansBold
-SlowModeBtn.TextSize = 12
-Instance.new("UICorner", SlowModeBtn).CornerRadius = UDim.new(0, 4)
-
-local RefreshBtn = Instance.new("TextButton", Main)
-RefreshBtn.Size = UDim2.new(1, -20, 0, 25)
-RefreshBtn.Position = UDim2.new(0, 10, 0, 85)
-RefreshBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
-RefreshBtn.Text = "Refresh Eggs List"
-RefreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-RefreshBtn.Font = Enum.Font.SourceSansBold
-RefreshBtn.TextSize = 12
-Instance.new("UICorner", RefreshBtn).CornerRadius = UDim.new(0, 4)
-
--- Scroll Frame List
+-- បញ្ជីពង
 local Scroll = Instance.new("ScrollingFrame", Main)
-Scroll.Size = UDim2.new(1, -20, 1, -160)
-Scroll.Position = UDim2.new(0, 10, 0, 120)
-Scroll.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+Scroll.Size = UDim2.new(1, -10, 1, -105)
+Scroll.Position = UDim2.new(0, 5, 0, 50)
+Scroll.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 Scroll.BorderSizePixel = 0
 Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-Instance.new("UIListLayout", Scroll).Padding = UDim.new(0, 4)
+Instance.new("UIListLayout", Scroll).Padding = UDim.new(0, 6)
 
-local Status = Instance.new("TextLabel", Main)
-Status.Size = UDim2.new(1, -20, 0, 20)
-Status.Position = UDim2.new(0, 10, 1, -25)
-Status.BackgroundTransparency = 1
-Status.Text = "Status: Ready"
-Status.TextColor3 = Color3.fromRGB(255, 200, 0)
-Status.Font = Enum.Font.SourceSansBold
-Status.TextSize = 12
-Status.TextXAlignment = Enum.TextXAlignment.Left
+-- ប៊ូតុងខាងក្រោម (STEAL / STOP)
+local BottomFrame = Instance.new("Frame", Main)
+BottomFrame.Size = UDim2.new(1, -10, 0, 40)
+BottomFrame.Position = UDim2.new(0, 5, 1, -45)
+BottomFrame.BackgroundTransparency = 1
 
-task.wait(0.1)
-Main.Visible = true
+local UIPadding = Instance.new("UIPadding", BottomFrame)
+UIPadding.PaddingLeft = UDim.new(0, 5)
+UIPadding.PaddingRight = UDim.new(0, 5)
 
--- មុខងារស្កេនរកពង (កាត់ Shop, Base, Holder ចោល)
-local function ScanMapEggs()
+local StealBtn = Instance.new("TextButton", BottomFrame)
+StealBtn.Size = UDim2.new(0.5, -5, 1, 0)
+StealBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+StealBtn.Text = "STEAL"
+StealBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+StealBtn.Font = Enum.Font.SourceSansBold
+StealBtn.TextSize = 15
+Instance.new("UICorner", StealBtn).CornerRadius = UDim.new(0, 6)
+
+local StopBtn = Instance.new("TextButton", BottomFrame)
+StopBtn.Size = UDim2.new(0.5, -5, 1, 0)
+StopBtn.Position = UDim2.new(0.5, 5, 0, 0)
+StopBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+StopBtn.Text = "STOP"
+StopBtn.TextColor3 = Color3.fromRGB(255, 50, 50)
+StopBtn.Font = Enum.Font.SourceSansBold
+StopBtn.TextSize = 15
+Instance.new("UICorner", StopBtn).CornerRadius = UDim.new(0, 6)
+
+-- ស្កេនរកពង
+local function ScanEggs()
     local found = {}
     local seen = {}
     
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if (obj:IsA("Model") or obj:IsA("Part") or obj:IsA("MeshPart")) and obj.Name:lower():find("egg") then
-            local cleanName = obj.Name
-            local parentName = (obj.Parent and obj.Parent.Name or ""):lower()
-            
-            -- ឆែកថាតើមាន ProximityPrompt សម្រាប់ចុចលួចឬអត់ (ហាងនឹងគ្មានវា)
-            local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
-            
-            local isBlacklisted = cleanName:lower():find("shop") or cleanName:lower():find("base") or cleanName:lower():find("holder") or parentName:find("base") or parentName:find("plot") or cleanName:lower():find("firstarea")
-            
-            if prompt and not isBlacklisted and not seen[cleanName] then
-                seen[cleanName] = true
-                local valueStr = "Unknown"
-                local valueNum = 0
-                
-                -- អានតម្លៃពី Billboard
-                local bb = obj:FindFirstChildWhichIsA("BillboardGui", true)
-                if bb then
-                    local lbl = bb:FindFirstChildWhichIsA("TextLabel", true)
-                    if lbl and lbl.Text ~= "" then valueStr = lbl.Text end
-                end
-                
-                valueNum = ParseValue(valueStr)
-                
-                -- យកតែពងដែលមានតម្លៃពិត
-                if valueNum > 0 then
-                    table.insert(found, {Model = obj, Name = cleanName:gsub(" Egg", ""), ValueStr = valueStr, ValueNum = valueNum})
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj:IsA("Model") or obj:IsA("Folder") then
+            for _, child in ipairs(obj:GetDescendants()) do
+                if (child:IsA("Model") or child:IsA("Part")) and child.Name:lower():find("egg") then
+                    local name = child.Name
+                    local prompt = child:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    local isBase = name:lower():find("shop") or name:lower():find("base") or name:lower():find("firstarea")
+                    
+                    if prompt and not isBase and not seen[name] then
+                        seen[name] = true
+                        
+                        local valueStr = "Unknown"
+                        local multStr = "1.0x"
+                        local iconId = "rbxassetid://7487019531" -- រូបភាពលំនាំដើម
+                        
+                        local bb = child:FindFirstChildWhichIsA("BillboardGui", true)
+                        if bb then
+                            local texts = {}
+                            for _, desc in ipairs(bb:GetDescendants()) do
+                                if desc:IsA("TextLabel") and desc.Text ~= "" then
+                                    table.insert(texts, desc.Text)
+                                elseif desc:IsA("ImageLabel") and desc.Image ~= "" then
+                                    iconId = desc.Image
+                                end
+                            end
+                            for _, t in ipairs(texts) do
+                                if t:find("/s") or t:find("M") or t:find("B") or t:find("K") then
+                                    valueStr = t
+                                elseif t:find("x") then
+                                    multStr = t
+                                end
+                            end
+                        end
+                        
+                        local valNum = ParseValue(valueStr)
+                        if valNum > 0 then
+                            table.insert(found, {Model = child, Name = name:gsub(" Egg", ""), Value = valueStr, Num = valNum, Mult = multStr, Icon = iconId})
+                        end
+                    end
                 end
             end
         end
     end
-    table.sort(found, function(a, b) return a.ValueNum > b.ValueNum end)
+    
+    table.sort(found, function(a, b) return a.Num > b.Num end)
     return found
 end
 
@@ -167,108 +159,107 @@ local function UpdateUI()
         if c:IsA("TextButton") then c:Destroy() end
     end
     
-    Status.Text = "Status: Scanning Map..."
-    task.wait(0.1)
+    local Eggs = ScanEggs()
     
-    local MapEggs = ScanMapEggs()
-    
-    for _, data in ipairs(MapEggs) do
+    for _, data in ipairs(Eggs) do
         local Btn = Instance.new("TextButton", Scroll)
-        Btn.Size = UDim2.new(1, -5, 0, 35)
-        Btn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+        Btn.Size = UDim2.new(1, -5, 0, 50)
+        Btn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
         Btn.Text = ""
-        Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4)
+        Btn.AutoButtonColor = false
+        Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
 
+        -- រូបសត្វ
+        local Icon = Instance.new("ImageLabel", Btn)
+        Icon.Size = UDim2.new(0, 40, 0, 40)
+        Icon.Position = UDim2.new(0, 5, 0.5, -20)
+        Icon.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+        Icon.Image = data.Icon
+        Instance.new("UICorner", Icon).CornerRadius = UDim.new(0, 4)
+
+        -- ឈ្មោះពង
         local NameLbl = Instance.new("TextLabel", Btn)
-        NameLbl.Size = UDim2.new(0.6, 0, 1, 0)
-        NameLbl.Position = UDim2.new(0, 10, 0, 0)
+        NameLbl.Size = UDim2.new(0.4, 0, 0, 20)
+        NameLbl.Position = UDim2.new(0.16, 0, 0.1, 0)
         NameLbl.BackgroundTransparency = 1
         NameLbl.Text = data.Name
-        NameLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+        NameLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
         NameLbl.Font = Enum.Font.SourceSansBold
-        NameLbl.TextSize = 12
+        NameLbl.TextSize = 14
         NameLbl.TextXAlignment = Enum.TextXAlignment.Left
 
+        -- តម្លៃ x
+        local MultLbl = Instance.new("TextLabel", Btn)
+        MultLbl.Size = UDim2.new(0.2, 0, 0, 20)
+        MultLbl.Position = UDim2.new(0.6, 0, 0.1, 0)
+        MultLbl.BackgroundTransparency = 1
+        MultLbl.Text = data.Mult
+        MultLbl.TextColor3 = Color3.fromRGB(100, 150, 255)
+        MultLbl.Font = Enum.Font.SourceSansBold
+        MultLbl.TextSize = 14
+        MultLbl.TextXAlignment = Enum.TextXAlignment.Right
+
+        -- តម្លៃលុយ
         local ValLbl = Instance.new("TextLabel", Btn)
-        ValLbl.Size = UDim2.new(0.35, 0, 1, 0)
-        ValLbl.Position = UDim2.new(0.65, 0, 0, 0)
+        ValLbl.Size = UDim2.new(0.2, 0, 0, 20)
+        ValLbl.Position = UDim2.new(0.8, 0, 0.1, 0)
         ValLbl.BackgroundTransparency = 1
-        ValLbl.Text = data.ValueStr
+        ValLbl.Text = data.Value
         ValLbl.TextColor3 = Color3.fromRGB(0, 255, 127)
         ValLbl.Font = Enum.Font.SourceSansBold
-        ValLbl.TextSize = 12
+        ValLbl.TextSize = 14
         ValLbl.TextXAlignment = Enum.TextXAlignment.Right
 
+        -- បន្ទាត់ពណ៌ស្វាយខាងក្រោម (ដូច Miranda)
+        local Bar = Instance.new("Frame", Btn)
+        Bar.Size = UDim2.new(0.35, 0, 0, 4)
+        Bar.Position = UDim2.new(0.16, 0, 0.75, 0)
+        Bar.BackgroundColor3 = Color3.fromRGB(80, 50, 150)
+        Bar.BorderSizePixel = 0
+        Instance.new("UICorner", Bar).CornerRadius = UDim.new(1, 0)
+
+        -- ពេលចុចលើពង
         Btn.MouseButton1Click:Connect(function()
             SelectedEggObj = data.Model
-            AutoSteal = true
-            AutoBtn.Text = "Auto Steal: ON"
-            AutoBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
             for _, c in pairs(Scroll:GetChildren()) do
-                if c:IsA("TextButton") then c.BackgroundColor3 = Color3.fromRGB(35, 35, 45) end
+                if c:IsA("TextButton") then c.BackgroundColor3 = Color3.fromRGB(25, 25, 30) end
             end
-            Btn.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+            Btn.BackgroundColor3 = Color3.fromRGB(0, 80, 0)
         end)
     end
-    Scroll.CanvasSize = UDim2.new(0, 0, 0, #MapEggs * 40)
-    Status.Text = "Status: Found "..#MapEggs.." eggs."
+    Scroll.CanvasSize = UDim2.new(0, 0, 0, #Eggs * 55)
 end
 
-task.spawn(function() task.wait(1) UpdateUI() end)
-RefreshBtn.MouseButton1Click:Connect(UpdateUI)
-
-SlowModeBtn.MouseButton1Click:Connect(function()
-    IsSlowMode = not IsSlowMode
-    SlowModeBtn.Text = "Slow Mode: "..(IsSlowMode and "ON" or "OFF")
-    SlowModeBtn.BackgroundColor3 = IsSlowMode and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(100, 100, 40)
+-- ចុច STEAL
+StealBtn.MouseButton1Click:Connect(function()
+    if not SelectedEggObj then
+        local Eggs = ScanEggs()
+        if #Eggs > 0 then SelectedEggObj = Eggs[1].Model end
+    end
+    AutoSteal = true
+    StealBtn.Text = "STEALING..."
+    StealBtn.TextColor3 = Color3.fromRGB(0, 255, 127)
 end)
 
-AutoBtn.MouseButton1Click:Connect(function()
-    AutoSteal = not AutoSteal
-    AutoBtn.Text = AutoSteal and "Auto Steal: ON" or "Auto Steal: OFF"
-    AutoBtn.BackgroundColor3 = AutoSteal and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+-- ចុច STOP
+StopBtn.MouseButton1Click:Connect(function()
+    AutoSteal = false
+    StealBtn.Text = "STEAL"
+    StealBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     
-    if AutoSteal and not SelectedEggObj then
-        local eggs = ScanMapEggs()
-        if #eggs > 0 then SelectedEggObj = eggs[1].Model end
-    end
-    
-    if not AutoSteal then
-        Status.Text = "Status: Stopped"
-        local Char = LP.Character
-        local Hum = Char and Char:FindFirstChild("Humanoid")
-        if Hum then 
-            Hum.WalkSpeed = 16
-            Hum:MoveTo(Char.HumanoidRootPart.Position) 
-        end
-    end
-end)
-
--- មុខងាររត់ដោយប្រើ Pathfinding (វាងជញ្ជាំង)
-local function RunToTarget(targetPos)
     local Char = LP.Character
     local Hum = Char and Char:FindFirstChild("Humanoid")
-    local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
-    if not Hum or not HRP then return end
-    
-    local path = PathfindingService:CreatePath({AgentRadius = 2, AgentHeight = 5, AgentCanJump = true})
-    local success, _ = pcall(function() path:ComputeAsync(HRP.Position, targetPos) end)
-    
-    if success and path.Status == Enum.PathStatus.Success then
-        for _, waypoint in ipairs(path:GetWaypoints()) do
-            if not AutoSteal then break end
-            Hum:MoveTo(waypoint.Position)
-            if waypoint.Action == Enum.PathWaypointAction.Jump then Hum.Jump = true end
-            task.wait(0.2)
-        end
-    else
-        Hum:MoveTo(targetPos) -- បើវាងមិនបាន រត់ត្រង់
+    if Hum then 
+        Hum.WalkSpeed = 16
+        Hum:MoveTo(Char.HumanoidRootPart.Position) 
     end
-end
+end)
 
--- Main Loop
+task.spawn(function() task.wait(1) UpdateUI() end)
+
+-- Main Loop (រត់ + លួច)
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.2) do
         if AutoSteal and SelectedEggObj then
             local Char = LP.Character
             local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
@@ -276,9 +267,8 @@ task.spawn(function()
             
             if HRP and Hum then
                 if not SelectedEggObj.Parent then
-                    Status.Text = "Egg stolen! Finding new..."
-                    local eggs = ScanMapEggs()
-                    if #eggs > 0 then SelectedEggObj = eggs[1].Model else AutoSteal = false end
+                    local Eggs = ScanEggs()
+                    if #Eggs > 0 then SelectedEggObj = Eggs[1].Model else AutoSteal = false end
                     task.wait(0.5)
                     continue
                 end
@@ -288,34 +278,40 @@ task.spawn(function()
                 local dist = (HRP.Position - targetPos).Magnitude
                 
                 if dist > 6 then
-                    Status.Text = "Running to: "..SelectedEggObj.Name
-                    Hum.WalkSpeed = IsSlowMode and RunSpeedSlow or RunSpeedFast
-                    RunToTarget(targetPos)
+                    Hum.WalkSpeed = RunSpeedFast
+                    Hum:MoveTo(targetPos) 
+                    
+                    DropTimer = DropTimer + 0.2
+                    if DropTimer >= 4 then
+                        DropTimer = 0
+                        pcall(function() Hum:UnequipTools() end)
+                        task.wait(0.1)
+                        local Backpack = LP:FindFirstChild("Backpack")
+                        if Backpack then
+                            for _, tool in ipairs(Backpack:GetChildren()) do
+                                if tool:IsA("Tool") then pcall(function() Hum:EquipTool(tool) end) break end
+                            end
+                        end
+                    end
                 else
-                    Hum:MoveTo(HRP.Position) -- ឈប់រត់
-                    Status.Text = "Stealing: "..SelectedEggObj.Name
+                    Hum:MoveTo(HRP.Position) -- ឈប់
                     
                     for _, v in pairs(SelectedEggObj:GetDescendants()) do
                         if v:IsA("ProximityPrompt") then
                             v.HoldDuration = 0
                             v.MaxActivationDistance = 50
-                            v.Enabled = true
                             pcall(function() fireproximityprompt(v) end)
                         end
                     end
                     
                     task.wait(0.5)
-                    
-                    -- រកពងថ្មីបន្ត
-                    local eggs = ScanMapEggs()
-                    if #eggs > 0 then SelectedEggObj = eggs[1].Model else SelectedEggObj = nil end
+                    local Eggs = ScanEggs()
+                    if #Eggs > 0 then SelectedEggObj = Eggs[1].Model else SelectedEggObj = nil end
                 end
             end
         else
             local Hum = LP.Character and LP.Character:FindFirstChild("Humanoid")
-            if Hum and Hum.WalkSpeed ~= 16 then 
-                Hum.WalkSpeed = 16
-            end
+            if Hum and Hum.WalkSpeed ~= 16 and not AutoSteal then Hum.WalkSpeed = 16 end
         end
     end
 end)
