@@ -1,19 +1,15 @@
--- [[ Nhaz Hub - Delta Safe & Instant UI ]]
--- PlayerGui Bypass | Instant Load | Real Values | Anti Trap/Guard
+-- [[ NHAZ HUB - Delta Safe Fix ]]
+print("Nhaz Hub: Loading...")
 
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
+local PG = LP:WaitForChild("PlayerGui")
 
 local AutoSteal = false
 local SelectedEggObj = nil
-local IsSlowMode = false
-local AntiTrap = true
-local AntiGuard = true
-local RunSpeedFast = 120
-local RunSpeedSlow = 50
+local RunSpeed = 150
 local DropTimer = 0
 
--- មុខងារបំប្លែងអក្សរទៅជាលេខ
 local function ParseValue(str)
     if not str then return 0 end
     local text = str:lower():gsub(",", ""):gsub("%s+", "")
@@ -27,150 +23,136 @@ local function ParseValue(str)
     else return num end
 end
 
--- បង្កើត UI ក្នុង PlayerGui ដើម្បីកុំឱ្យ Delta Error
+-- ១. បង្កើត UI មុនគេ (ដាច់ដោយឡែក)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Nhaz_Hub"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = LP:WaitForChild("PlayerGui") -- ដាក់ក្នុង PlayerGui តែម្តង
+ScreenGui.Parent = PG
 
-local ToggleBtn = Instance.new("TextButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
-ToggleBtn.Position = UDim2.new(0.1, 0, 0.2, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-ToggleBtn.Text = "Nhaz"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.Font = Enum.Font.SourceSansBold
-ToggleBtn.TextSize = 14
-ToggleBtn.Draggable = true
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1, 0)
-
-local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 320, 0, 400)
-Main.Position = UDim2.new(0.5, -160, 0.5, -200)
-Main.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 320, 0, 450)
+Main.Position = UDim2.new(0.5, -160, 0.5, -225)
+Main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 Main.Active = true
 Main.Draggable = true
-Main.Visible = true -- បង្ហាញភ្លាមៗ
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
+Main.Visible = true
+Main.Parent = ScreenGui
 
-local TopBar = Instance.new("Frame", Main)
-TopBar.Size = UDim2.new(1, 0, 0, 35)
-TopBar.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-TopBar.BorderSizePixel = 0
-Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 8)
+local UICorner1 = Instance.new("UICorner")
+UICorner1.CornerRadius = UDim.new(0, 10)
+UICorner1.Parent = Main
 
-local Title = Instance.new("TextLabel", TopBar)
-Title.Size = UDim2.new(1, 0, 1, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "Nhaz Auto Steal"
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 45)
+Title.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+Title.Text = "NHAZ HUB"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 16
+Title.TextSize = 22
+Title.Parent = Main
 
-ToggleBtn.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
+local UICorner2 = Instance.new("UICorner")
+UICorner2.CornerRadius = UDim.new(0, 10)
+UICorner2.Parent = Title
 
-local AutoBtn = Instance.new("TextButton", Main)
-AutoBtn.Size = UDim2.new(0.45, 0, 0, 30)
-AutoBtn.Position = UDim2.new(0.03, 0, 0, 45)
-AutoBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-AutoBtn.Text = "Auto Steal: OFF"
-AutoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-AutoBtn.Font = Enum.Font.SourceSansBold
-AutoBtn.TextSize = 12
-Instance.new("UICorner", AutoBtn).CornerRadius = UDim.new(0, 4)
-
-local SlowModeBtn = Instance.new("TextButton", Main)
-SlowModeBtn.Size = UDim2.new(0.45, 0, 0, 30)
-SlowModeBtn.Position = UDim2.new(0.52, 0, 0, 45)
-SlowModeBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 40)
-SlowModeBtn.Text = "Slow Mode: OFF"
-SlowModeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-SlowModeBtn.Font = Enum.Font.SourceSansBold
-SlowModeBtn.TextSize = 12
-Instance.new("UICorner", SlowModeBtn).CornerRadius = UDim.new(0, 4)
-
-local GuardBtn = Instance.new("TextButton", Main)
-GuardBtn.Size = UDim2.new(0.3, 0, 0, 25)
-GuardBtn.Position = UDim2.new(0.03, 0, 0, 80)
-GuardBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-GuardBtn.Text = "Guard: ON"
-GuardBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-GuardBtn.Font = Enum.Font.SourceSansBold
-GuardBtn.TextSize = 11
-Instance.new("UICorner", GuardBtn).CornerRadius = UDim.new(0, 4)
-
-local TrapBtn = Instance.new("TextButton", Main)
-TrapBtn.Size = UDim2.new(0.3, 0, 0, 25)
-TrapBtn.Position = UDim2.new(0.35, 0, 0, 80)
-TrapBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-TrapBtn.Text = "Trap: ON"
-TrapBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-TrapBtn.Font = Enum.Font.SourceSansBold
-TrapBtn.TextSize = 11
-Instance.new("UICorner", TrapBtn).CornerRadius = UDim.new(0, 4)
-
-local RefreshBtn = Instance.new("TextButton", Main)
-RefreshBtn.Size = UDim2.new(0.3, 0, 0, 25)
-RefreshBtn.Position = UDim2.new(0.67, 0, 0, 80)
-RefreshBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
-RefreshBtn.Text = "Refresh"
-RefreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-RefreshBtn.Font = Enum.Font.SourceSansBold
-RefreshBtn.TextSize = 11
-Instance.new("UICorner", RefreshBtn).CornerRadius = UDim.new(0, 4)
-
-local Scroll = Instance.new("ScrollingFrame", Main)
-Scroll.Size = UDim2.new(1, -20, 1, -160)
-Scroll.Position = UDim2.new(0, 10, 0, 115)
-Scroll.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+local Scroll = Instance.new("ScrollingFrame")
+Scroll.Size = UDim2.new(1, -10, 1, -105)
+Scroll.Position = UDim2.new(0, 5, 0, 50)
+Scroll.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 Scroll.BorderSizePixel = 0
 Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-Instance.new("UIListLayout", Scroll).Padding = UDim.new(0, 4)
+Scroll.Parent = Main
 
-local Status = Instance.new("TextLabel", Main)
-Status.Size = UDim2.new(1, -20, 0, 20)
-Status.Position = UDim2.new(0, 10, 1, -25)
-Status.BackgroundTransparency = 1
-Status.Text = "Status: UI Loaded. Press Refresh."
-Status.TextColor3 = Color3.fromRGB(255, 200, 0)
-Status.Font = Enum.Font.SourceSansBold
-Status.TextSize = 12
-Status.TextXAlignment = Enum.TextXAlignment.Left
+local UIList = Instance.new("UIListLayout")
+UIList.Padding = UDim.new(0, 6)
+UIList.Parent = Scroll
 
--- មុខងារស្កេនរកពង (ប្រើ GetChildren ដើម្បីកុំឱ្យគាំង)
-local function ScanMapEggs()
+local BottomFrame = Instance.new("Frame")
+BottomFrame.Size = UDim2.new(1, -10, 0, 40)
+BottomFrame.Position = UDim2.new(0, 5, 1, -45)
+BottomFrame.BackgroundTransparency = 1
+BottomFrame.Parent = Main
+
+local StealBtn = Instance.new("TextButton")
+StealBtn.Size = UDim2.new(0.48, 0, 1, 0)
+StealBtn.Position = UDim2.new(0, 0, 0, 0)
+StealBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+StealBtn.Text = "STEAL"
+StealBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+StealBtn.Font = Enum.Font.SourceSansBold
+StealBtn.TextSize = 15
+StealBtn.Parent = BottomFrame
+
+local UICorner3 = Instance.new("UICorner")
+UICorner3.CornerRadius = UDim.new(0, 6)
+UICorner3.Parent = StealBtn
+
+local StopBtn = Instance.new("TextButton")
+StopBtn.Size = UDim2.new(0.48, 0, 1, 0)
+StopBtn.Position = UDim2.new(0.52, 0, 0, 0)
+StopBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+StopBtn.Text = "STOP"
+StopBtn.TextColor3 = Color3.fromRGB(255, 50, 50)
+StopBtn.Font = Enum.Font.SourceSansBold
+StopBtn.TextSize = 15
+StopBtn.Parent = BottomFrame
+
+local UICorner4 = Instance.new("UICorner")
+UICorner4.CornerRadius = UDim.new(0, 6)
+UICorner4.Parent = StopBtn
+
+print("Nhaz Hub: UI Loaded Successfully!")
+
+-- ២. មុខងារស្កេនពង (ស្កេននៅខាងក្រោយ)
+local function ScanEggs()
     local found = {}
     local seen = {}
     
     for _, obj in ipairs(workspace:GetChildren()) do
-        if obj:IsA("Model") or obj:IsA("Part") or obj:IsA("Folder") then
+        if obj:IsA("Model") or obj:IsA("Folder") then
             for _, child in ipairs(obj:GetDescendants()) do
-                if (child:IsA("Model") or child:IsA("Part")) and0 child.Name:lower():find("egg") then
-                    local cleanName = child.Name
-                    local prompt = child:FindFirstChildWhich.IsA("ProximityPrompt", true)
-                    local isBlacklisted = cleanName:lower():find("shop") or cleanName:lower1():find("base") or cleanName:lower():find("firstarea")
+                if (child:IsA("Model") or child:IsA("Part")) and child.Name:lower():find("egg") then
+                    local name = child.Name
+                    local prompt = child:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    local isBase = name:lower():find("shop") or name:lower():find("base") or name:lower():find("firstarea")
                     
-                    if prompt and not isBlacklisted and not seen[clean)
-Name] then
-                        seen[cleanName] = true
+                    if prompt and not isBase and not seen[name] then
+                        seen[name] = true
+                        
                         local valueStr = "Unknown"
-                        local bb = child:    
-FindFirstChildWhichIsA("BillboardGui", true)
+                        local multStr = "1.0x"
+                        local iconId = "rbxassetid://7487019531"
+                        
+                        local bb = child:FindFirstChildWhichIsA("BillboardGui", true)
                         if bb then
-                            local lbl = bb:FindFirstChildWhichIsA("   TextLabel", true)
-                            if lbl and lbl.Text ~= "" then valueStr = lbl.Text end
+                            local texts = {}
+                            for _, desc in ipairs(bb:GetDescendants()) do
+                                if desc:IsA("TextLabel") and desc.Text ~= "" then
+                                    table.insert(texts, desc.Text)
+                                elseif desc:IsA("ImageLabel") and desc.Image ~= "" then
+                                    iconId = desc.Image
+                                end
+                            end
+                            for _, t in ipairs(texts) do
+                                if t:find("/s") or t:find("M") or t:find("B") or t:find("K") then
+                                    valueStr = t
+                                elseif t:find("x") then
+                                    multStr = t
+                                end
+                            end
                         end
                         
-                        local valueNum = ParseValue(valueStr)
-                        if valueNum > 0 then
-                            table.insert(found, {Model = child, Name = cleanName:gsub(" Egg", ""), ValueStr = valueStr, ValueNum = valueNum})
+                        local valNum = ParseValue(valueStr)
+                        if valNum > 0 then
+                            table.insert(found, {Model = child, Name = name:gsub(" Egg", ""), Value = valueStr, Num = valNum, Mult = multStr, Icon = iconId})
                         end
                     end
                 end
             end
         end
     end
-    table.sort(found, function(a, b) return a.ValueNum > b.ValueNum end)
+    
+    table.sort(found, function(a, b) return a.Num > b.Num end)
     return found
 end
 
@@ -179,96 +161,117 @@ local function UpdateUI()
         if c:IsA("TextButton") then c:Destroy() end
     end
     
-    Status.Text = "Status: Scanning Map..."
-    task.wait( local MapEggs = ScanMapEggs()
+    local Eggs = ScanEggs()
+    print("Nhaz Hub: Found " .. #Eggs .. " eggs.")
     
-    for _, data in ipairs(MapEggs) do
-        local Btn = Instance.new("TextButton", Scroll)
-        Btn.Size = UDim2.new(1, -5, 0, 35)
-        Btn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    for _, data in ipairs(Eggs) do
+        local Btn = Instance.new("TextButton")
+        Btn.Size = UDim2.new(1, -5, 0, 50)
+        Btn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
         Btn.Text = ""
-        Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4)
+        Btn.AutoButtonColor = false
+        Btn.Parent = Scroll
 
-        local NameLbl = Instance.new("TextLabel", Btn)
-        NameLbl.Size = UDim2.new(0.6, 0, 1, 0)
-        NameLbl.Position = UDim2.new(0, 10, 0, 0)
+        local UC = Instance.new("UICorner")
+        UC.CornerRadius = UDim.new(0, 6)
+        UC.Parent = Btn
+
+        local Icon = Instance.new("ImageLabel")
+        Icon.Size = UDim2.new(0, 40, 0, 40)
+        Icon.Position = UDim2.new(0, 5, 0.5, -20)
+        Icon.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+        Icon.Image = data.Icon
+        Icon.Parent = Btn
+
+        local NameLbl = Instance.new("TextLabel")
+        NameLbl.Size = UDim2.new(0.4, 0, 0, 20)
+        NameLbl.Position = UDim2.new(0.16, 0, 0.1, 0)
         NameLbl.BackgroundTransparency = 1
         NameLbl.Text = data.Name
-        NameLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+        NameLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
         NameLbl.Font = Enum.Font.SourceSansBold
-        NameLbl.TextSize = 12
+        NameLbl.TextSize = 14
         NameLbl.TextXAlignment = Enum.TextXAlignment.Left
+        NameLbl.Parent = Btn
 
-        local ValLbl = Instance.new("TextLabel", Btn)
-        ValLbl.Size = UDim2.new(0.35, 0, 1, 0)
-        ValLbl.Position = UDim2.new(0.65, 0, 0, 0)
+        local MultLbl = Instance.new("TextLabel")
+        MultLbl.Size = UDim2.new(0.2, 0, 0, 20)
+        MultLbl.Position = UDim2.new(0.6, 0, 0.1, 0)
+        MultLbl.BackgroundTransparency = 1
+        MultLbl.Text = data.Mult
+        MultLbl.TextColor3 = Color3.fromRGB(100, 150, 255)
+        MultLbl.Font = Enum.Font.SourceSansBold
+        MultLbl.TextSize = 14
+        MultLbl.TextXAlignment = Enum.TextXAlignment.Right
+        MultLbl.Parent = Btn
+
+        local ValLbl = Instance.new("TextLabel")
+        ValLbl.Size = UDim2.new(0.2, 0, 0, 20)
+        ValLbl.Position = UDim2.new(0.8, 0, 0.1, 0)
         ValLbl.BackgroundTransparency = 1
-        ValLbl.Text = data.ValueStr
+        ValLbl.Text = data.Value
         ValLbl.TextColor3 = Color3.fromRGB(0, 255, 127)
         ValLbl.Font = Enum.Font.SourceSansBold
-        ValLbl.TextSize = 12
+        ValLbl.TextSize = 14
         ValLbl.TextXAlignment = Enum.TextXAlignment.Right
+        ValLbl.Parent = Btn
+
+        local Bar = Instance.new("Frame")
+        Bar.Size = UDim2.new(0.35, 0, 0, 4)
+        Bar.Position = UDim2.new(0.16, 0, 0.75, 0)
+        Bar.BackgroundColor3 = Color3.fromRGB(80, 50, 150)
+        Bar.BorderSizePixel = 0
+        Bar.Parent = Btn
+
+        local UCB = Instance.new("UICorner")
+        UCB.CornerRadius = UDim.new(1, 0)
+        UCB.Parent = Bar
 
         Btn.MouseButton1Click:Connect(function()
             SelectedEggObj = data.Model
-            AutoSteal = true
-            AutoBtn.Text = "Auto Steal: ON"
-            AutoBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
             for _, c in pairs(Scroll:GetChildren()) do
-                if c:IsA("TextButton") then c.BackgroundColor3 = Color3.fromRGB(35, 35, 45) end
+                if c:IsA("TextButton") then c.BackgroundColor3 = Color3.fromRGB(25, 25, 30) end
             end
-            Btn.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+            Btn.BackgroundColor3 = Color3.fromRGB(0, 80, 0)
         end)
     end
-    Scroll.CanvasSize = UDim2.new(0, 0, 0, #MapEggs * 40)
-    Status.Text = "Status: Found "..#MapEggs.." eggs."
+    Scroll.CanvasSize = UDim2.new(0, 0, 0, #Eggs * 55)
 end
 
-RefreshBtn.MouseButton1Click:Connect(UpdateUI)
-task.spawn(function() task.wait(2) UpdateUI() end) -- ស្កេនយឺតៗ ២ វិនាទីក្រោយ UI លោត
-
-SlowModeBtn.MouseButton1Click:Connect(function()
-    IsSlowMode = not IsSlowMode
-    SlowModeBtn.Text = "Slow Mode: "..(IsSlowMode and "ON" or "OFF")
-    SlowModeBtn.BackgroundColor3 = IsSlowMode and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(100, 100, 40)
-end)
-
-GuardBtn.MouseButton1Click:Connect(function()
-    AntiGuard = not AntiGuard
-    GuardBtn.Text = "Guard: "..(AntiGuard and "ON" or "OFF")
-    GuardBtn.BackgroundColor3 = AntiGuard and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-end)
-
-TrapBtn.MouseButton1Click:Connect(function()
-    AntiTrap = not AntiTrap
-    TrapBtn.Text = "Trap: "..(AntiTrap and "ON" or "OFF")
-    TrapBtn.BackgroundColor3 = AntiTrap and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-end)
-
-AutoBtn.MouseButton1Click:Connect(function()
-    AutoSteal = not AutoSteal
-    AutoBtn.Text = AutoSteal and "Auto Steal: ON" or "Auto Steal: OFF"
-    AutoBtn.BackgroundColor3 = AutoSteal and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
-    
-    if AutoSteal and not SelectedEggObj then
-        local eggs = ScanMapEggs()
-        if #eggs > 0 then SelectedEggObj = eggs[1].Model end
-    end
-    
-    if not AutoSteal then
-        Status.Text = "Status: Stopped"
-        local Char = LP.Character
-        local Hum = Char and Char:FindFirstChild("Humanoid")
-        if Hum then 
-            Hum.WalkSpeed = 16
-            Hum:MoveTo(Char.HumanoidRootPart.Position) 
-        end
-    end
-end)
-
--- Main Loop (Auto Steal + Run Back + Drop/Pickup)
+-- ស្កេននៅខាងក្រោយ ដើម្បីកុំឱ្យគាំង
 task.spawn(function()
-    while task.wait(0.3) do
+    task.wait(2) 
+    UpdateUI()
+end)
+
+-- ៣. មុខងារប៊ូតុង
+StealBtn.MouseButton1Click:Connect(function()
+    if not SelectedEggObj then
+        -- បើមិនទាន់រើស ឱ្យវាស្កេនរកពងថ្លៃជាងគេសិន
+        local Eggs = ScanEggs()
+        if #Eggs > 0 then SelectedEggObj = Eggs[1].Model end
+    end
+    AutoSteal = true
+    StealBtn.Text = "STEALING..."
+    StealBtn.TextColor3 = Color3.fromRGB(0, 255, 127)
+end)
+
+StopBtn.MouseButton1Click:Connect(function()
+    AutoSteal = false
+    StealBtn.Text = "STEAL"
+    StealBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    
+    local Char = LP.Character
+    local Hum = Char and Char:FindFirstChild("Humanoid")
+    if Hum then 
+        Hum.WalkSpeed = 16
+        Hum:MoveTo(Char.HumanoidRootPart.Position) 
+    end
+end)
+
+-- ៤. Main Loop
+task.spawn(function()
+    while task.wait(0.2) do
         if AutoSteal and SelectedEggObj then
             local Char = LP.Character
             local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
@@ -276,9 +279,8 @@ task.spawn(function()
             
             if HRP and Hum then
                 if not SelectedEggObj.Parent then
-                    Status.Text = "Egg stolen! Finding new..."
-                    local eggs = ScanMapEggs()
-                    if #eggs > 0 then SelectedEggObj = eggs[1].Model else AutoSteal = false end
+                    local Eggs = ScanEggs()
+                    if #Eggs > 0 then SelectedEggObj = Eggs[1].Model else AutoSteal = false end
                     task.wait(0.5)
                     continue
                 end
@@ -288,14 +290,12 @@ task.spawn(function()
                 local dist = (HRP.Position - targetPos).Magnitude
                 
                 if dist > 6 then
-                    Status.Text = "Running to: "..SelectedEggObj.Name
-                    Hum.WalkSpeed = IsSlowMode and RunSpeedSlow or RunSpeedFast
+                    Hum.WalkSpeed = RunSpeed
                     Hum:MoveTo(targetPos) 
                     
-                    DropTimer = DropTimer + 0.3
+                    DropTimer = DropTimer + 0.2
                     if DropTimer >= 4 then
                         DropTimer = 0
-                        Status.Text = "Drop & Pickup..."
                         pcall(function() Hum:UnequipTools() end)
                         task.wait(0.1)
                         local Backpack = LP:FindFirstChild("Backpack")
@@ -306,8 +306,7 @@ task.spawn(function()
                         end
                     end
                 else
-                    Hum:MoveTo(HRP.Position)
-                    Status.Text = "Stealing: "..SelectedEggObj.Name
+                    Hum:MoveTo(HRP.Position) -- ឈប់រត់
                     
                     for _, v in pairs(SelectedEggObj:GetDescendants()) do
                         if v:IsA("ProximityPrompt") then
@@ -318,19 +317,13 @@ task.spawn(function()
                     end
                     
                     task.wait(0.5)
-                    
-                    Status.Text = "Running back..."
-                    Hum.WalkSpeed = IsSlowMode and RunSpeedSlow or RunSpeedFast
-                    Hum:MoveTo(HRP.Position + (HRP.Position - targetPos).Unit * 30)
-                    task.wait(0.5)
-                    
-                    local eggs = ScanMapEggs()
-                    if #eggs > 0 then SelectedEggObj = eggs[1].Model else SelectedEggObj = nil end
+                    local Eggs = ScanEggs()
+                    if #Eggs > 0 then SelectedEggObj = Eggs[1].Model else SelectedEggObj = nil end
                 end
             end
         else
             local Hum = LP.Character and LP.Character:FindFirstChild("Humanoid")
-            if Hum and Hum.WalkSpeed ~= 16 then Hum.WalkSpeed = 16 end
+            if Hum and Hum.WalkSpeed ~= 16 and not AutoSteal then Hum.WalkSpeed = 16 end
         end
     end
 end)
