@@ -1,5 +1,5 @@
--- [[ Nhaz Auto Steal - Best Value & Focus ]]
--- Best Value | Fast Run & Return | Anti Guard/Trap | Lightweight
+-- [[ Nhaz Auto Steal - 100% Map Scanner ]]
+-- Billboard Scanner | Focus Best Value | Run & Return | Anti Guard/Trap
 
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
@@ -10,6 +10,7 @@ local AntiTrap = true
 local AntiGuard = true
 local CurrentTarget = nil
 local IsReturning = false
+local BasePosition = Vector3.new(0, 0, 0)
 
 local function ParseValue(str)
     if not str then return 0 end
@@ -26,7 +27,7 @@ end
 
 -- UI Setup
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Nhaz_Hub_Best"
+ScreenGui.Name = "Nhaz_Hub_100"
 ScreenGui.ResetOnSpawn = false
 pcall(function() ScreenGui.Parent = CoreGui end)
 if not ScreenGui.Parent then ScreenGui.Parent = LP:WaitForChild("PlayerGui") end
@@ -71,7 +72,7 @@ local AutoBtn = Instance.new("TextButton", Main)
 AutoBtn.Size = UDim2.new(1, -20, 0, 35)
 AutoBtn.Position = UDim2.new(0, 10, 0, 45)
 AutoBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-AutoBtn.Text = "Auto Steal Best: OFF"
+AutoBtn.Text = "Auto Steal: OFF"
 AutoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 AutoBtn.Font = Enum.Font.SourceSansBold
 AutoBtn.TextSize = 14
@@ -98,10 +99,10 @@ TrapBtn.TextSize = 12
 Instance.new("UICorner", TrapBtn).CornerRadius = UDim.new(0, 4)
 
 local Status = Instance.new("TextLabel", Main)
-Status.Size = UDim2.new(1, -20, 0, 60)
+Status.Size = UDim2.new(1, -20, 0, 70)
 Status.Position = UDim2.new(0, 10, 0, 130)
 Status.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-Status.Text = "Status: Ready\nTarget: None"
+Status.Text = "Status: Ready\nTarget: None\nValue: None"
 Status.TextColor3 = Color3.fromRGB(255, 200, 0)
 Status.Font = Enum.Font.SourceSansBold
 Status.TextSize = 12
@@ -110,29 +111,29 @@ Instance.new("UICorner", Status).CornerRadius = UDim.new(0, 4)
 task.wait(0.1)
 Main.Visible = true
 
--- ស្កេនរកពងដែលមានតម្លៃខ្ពស់ជាងគេ
+-- ប្រព័ន្ធស្កេនរកពងថ្លៃជាងគេ (ស្កេនតាម Billboard និង Prompt)
 local function GetBestEgg()
     local bestEgg = nil
     local highestValue = 0
     
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if (obj:IsA("Model") or obj:IsA("Part")) and obj.Name:lower():find("egg") then
-            local cleanName = obj.Name
-            local isBlacklisted = cleanName:lower():find("shop") or cleanName:lower():find("base") or cleanName:lower():find("firstarea") or cleanName:lower():find("holder")
-            local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
-            
-            if prompt and not isBlacklisted then
-                local valueStr = "Unknown"
-                local bb = obj:FindFirstChildWhichIsA("BillboardGui", true)
-                if bb then
-                    local lbl = bb:FindFirstChildWhichIsA("TextLabel", true)
-                    if lbl and lbl.Text ~= "" then valueStr = lbl.Text end
-                end
+        if obj:IsA("BillboardGui") then
+            local textLabel = obj:FindFirstChildWhichIsA("TextLabel", true)
+            -- បើអក្សរមាន /s មានន័យថាវាជាពងក្នុង Map
+            if textLabel and (textLabel.Text:find("/s") or textLabel.Text:find("M") or textLabel.Text:find("B") or textLabel.Text:find("T")) then
+                local eggModel = obj.Parent
+                local prompt = eggModel:FindFirstChildWhichIsA("ProximityPrompt", true)
                 
-                local valueNum = ParseValue(valueStr)
-                if valueNum > highestValue then
-                    highestValue = valueNum
-                    bestEgg = {Model = obj, Name = cleanName:gsub(" Egg", ""), Value = valueStr}
+                if prompt then
+                    local valueNum = ParseValue(textLabel.Text)
+                    if valueNum > highestValue then
+                        highestValue = valueNum
+                        bestEgg = {
+                            Model = eggModel, 
+                            ValueStr = textLabel.Text, 
+                            ValueNum = valueNum
+                        }
+                    end
                 end
             end
         end
@@ -140,7 +141,6 @@ local function GetBestEgg()
     return bestEgg
 end
 
--- Toggle Buttons
 GuardBtn.MouseButton1Click:Connect(function()
     AntiGuard = not AntiGuard
     GuardBtn.Text = "Anti Guard: "..(AntiGuard and "ON" or "OFF")
@@ -155,12 +155,16 @@ end)
 
 AutoBtn.MouseButton1Click:Connect(function()
     AutoSteal = not AutoSteal
-    AutoBtn.Text = AutoSteal and "Auto Steal Best: ON" or "Auto Steal Best: OFF"
+    AutoBtn.Text = AutoSteal and "Auto Steal: ON" or "Auto Steal: OFF"
     AutoBtn.BackgroundColor3 = AutoSteal and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
     
+    local Char = LP.Character
+    if Char then
+        BasePosition = Char.HumanoidRootPart.Position -- ចងចាំទីតាំងចាប់ផ្តើម
+    end
+    
     if not AutoSteal then
-        Status.Text = "Status: Stopped"
-        local Char = LP.Character
+        Status.Text = "Status: Stopped\nTarget: None\nValue: None"
         local Hum = Char and Char:FindFirstChild("Humanoid")
         if Hum then 
             Hum.WalkSpeed = 16
@@ -178,16 +182,16 @@ task.spawn(function()
             local Hum = Char and Char:FindFirstChild("Humanoid")
             
             if HRP and Hum then
-                -- ប្រព័ន្ធ Anti Guard & Trap (ស្រាល)
+                -- ប្រព័ន្ធ Anti Guard & Trap
                 if AntiGuard or AntiTrap then
                     for _, m in ipairs(workspace:GetChildren()) do
                         if m:IsA("Model") then
                             local root = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChildWhichIsA("BasePart")
                             if root then
                                 local dist = (HRP.Position - root.Position).Magnitude
-                                if AntiGuard and (m.Name:lower():find("guard") or m.Name:lower():find("police") or m.Name:lower():find("tiger")) and dist < 25 then
+                                if AntiGuard and (m.Name:lower():find("guard") or m.Name:lower():find("police") or m.Name:lower():find("tiger")) and dist < 30 then
                                     Hum.Jump = true
-                                elseif AntiTrap and (m.Name:lower():find("trap") or m.Name:lower():find("spike")) and dist < 15 then
+                                elseif AntiTrap and (m.Name:lower():find("trap") or m.Name:lower():find("spike")) and dist < 20 then
                                     Hum.Jump = true
                                 end
                             end
@@ -196,7 +200,7 @@ task.spawn(function()
                 end
 
                 if not IsReturning then
-                    -- រកពងថ្លៃជាងគេ
+                    -- បើអត់មានគោលដៅ ឬពងបាត់ រកពងថ្មី
                     if not CurrentTarget or not CurrentTarget.Model.Parent then
                         CurrentTarget = GetBestEgg()
                     end
@@ -204,14 +208,17 @@ task.spawn(function()
                     if CurrentTarget and CurrentTarget.Model.Parent then
                         local targetPos = CurrentTarget.Model.Position
                         local dist = (HRP.Position - targetPos).Magnitude
-                        Status.Text = "Status: Running to Best\nTarget: "..CurrentTarget.Name.." ("..CurrentTarget.Value..")"
+                        Status.Text = "Status: Running to Best\nValue: "..CurrentTarget.ValueStr
                         
                         if dist > 6 then
-                            Hum.WalkSpeed = 150
+                            Hum.WalkSpeed = 180 -- ល្បឿនលឿន
                             Hum:MoveTo(targetPos)
+                            
+                            -- បើជាប់ជញ្ជាំង ឱ្យលោត
+                            if HRP.Velocity.Magnitude < 2 then Hum.Jump = true end
                         else
                             Hum:MoveTo(HRP.Position) -- ឈប់
-                            Status.Text = "Status: Stealing...\nTarget: "..CurrentTarget.Name
+                            Status.Text = "Status: Stealing...\nValue: "..CurrentTarget.ValueStr
                             
                             for _, v in pairs(CurrentTarget.Model:GetDescendants()) do
                                 if v:IsA("ProximityPrompt") then
@@ -222,23 +229,25 @@ task.spawn(function()
                             end
                             
                             task.wait(0.5)
-                            IsReturning = true -- ប្តូរទៅរត់ត្រឡប់មកវិញ
+                            IsReturning = true -- រត់ត្រឡប់មកវិញ
                             CurrentTarget = nil
                         end
                     else
                         Status.Text = "Status: No Eggs Found\nWaiting for spawn..."
                     end
                 else
-                    -- រត់ត្រឡប់មកវិញលឿន
-                    Status.Text = "Status: Running Back to Base"
-                    Hum.WalkSpeed = 150
+                    -- រត់ត្រឡប់មកវិញយ៉ាងលឿន
+                    Status.Text = "Status: Running Back\nValue: None"
+                    Hum.WalkSpeed = 180
                     
-                    -- រត់ថយក្រោយ ៥០ ស្ទូឌ
-                    local backPos = HRP.Position - (HRP.CFrame.LookVector * 50)
-                    Hum:MoveTo(backPos)
+                    -- រត់ត្រឡប់ទៅទីតាំងដើមវិញ
+                    Hum:MoveTo(BasePosition)
                     
-                    task.wait(1) -- រង់ចាំបន្តិច
-                    IsReturning = false -- ចាប់ផ្តើមរកពងថ្មី
+                    if (HRP.Position - BasePosition).Magnitude < 10 then
+                        IsReturning = false -- ដល់ហើយ រកពងថ្មី
+                    else
+                        task.wait(0.1)
+                    end
                 end
             end
         else
