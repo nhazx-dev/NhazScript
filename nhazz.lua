@@ -1,15 +1,15 @@
--- [[ NHAZ HUB - Miranda Style UI ]]
--- No Miranda Text | Real Values | Anti Trap/Guard | Steal & Stop
+-- [[ NHAZ HUB - Final Stable Version ]]
+print("Nhaz Hub: Loading...")
 
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
+local PG = LP:WaitForChild("PlayerGui")
 
 local AutoSteal = false
 local SelectedEggObj = nil
-local RunSpeedFast = 150
+local RunSpeed = 150
 local DropTimer = 0
 
--- មុខងារបំប្លែងអក្សរទៅជាលេខ
 local function ParseValue(str)
     if not str then return 0 end
     local text = str:lower():gsub(",", ""):gsub("%s+", "")
@@ -23,85 +23,85 @@ local function ParseValue(str)
     else return num end
 end
 
--- បង្កើត UI (PlayerGui)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Nhaz_Hub"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = LP:WaitForChild("PlayerGui")
+ScreenGui.Parent = PG
 
--- ប៊ូតុងមូល Nhaz
-local ToggleBtn = Instance.new("TextButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
-ToggleBtn.Position = UDim2.new(0.1, 0, 0.2, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-ToggleBtn.Text = "Nhaz"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.Font = Enum.Font.SourceSansBold
-ToggleBtn.TextSize = 14
-ToggleBtn.Draggable = true
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1, 0)
-
--- ផ្ទាំង Menu
-local Main = Instance.new("Frame", ScreenGui)
+local Main = Instance.new("Frame")
 Main.Size = UDim2.new(0, 320, 0, 450)
 Main.Position = UDim2.new(0.5, -160, 0.5, -225)
 Main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 Main.Active = true
 Main.Draggable = true
 Main.Visible = true
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
+Main.Parent = ScreenGui
 
-ToggleBtn.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
+local UICorner1 = Instance.new("UICorner")
+UICorner1.CornerRadius = UDim.new(0, 10)
+UICorner1.Parent = Main
 
--- ចំណងជើង NHAZ HUB
-local Title = Instance.new("TextLabel", Main)
+local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 45)
 Title.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 Title.Text = "NHAZ HUB"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 22
-Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 10)
+Title.Parent = Main
 
--- បញ្ជីពង
-local Scroll = Instance.new("ScrollingFrame", Main)
+local UICorner2 = Instance.new("UICorner")
+UICorner2.CornerRadius = UDim.new(0, 10)
+UICorner2.Parent = Title
+
+local Scroll = Instance.new("ScrollingFrame")
 Scroll.Size = UDim2.new(1, -10, 1, -105)
 Scroll.Position = UDim2.new(0, 5, 0, 50)
 Scroll.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 Scroll.BorderSizePixel = 0
 Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-Instance.new("UIListLayout", Scroll).Padding = UDim.new(0, 6)
+Scroll.Parent = Main
 
--- ប៊ូតុងខាងក្រោម (STEAL / STOP)
-local BottomFrame = Instance.new("Frame", Main)
+local UIList = Instance.new("UIListLayout")
+UIList.Padding = UDim.new(0, 6)
+UIList.Parent = Scroll
+
+local BottomFrame = Instance.new("Frame")
 BottomFrame.Size = UDim2.new(1, -10, 0, 40)
 BottomFrame.Position = UDim2.new(0, 5, 1, -45)
 BottomFrame.BackgroundTransparency = 1
+BottomFrame.Parent = Main
 
-local UIPadding = Instance.new("UIPadding", BottomFrame)
-UIPadding.PaddingLeft = UDim.new(0, 5)
-UIPadding.PaddingRight = UDim.new(0, 5)
-
-local StealBtn = Instance.new("TextButton", BottomFrame)
-StealBtn.Size = UDim2.new(0.5, -5, 1, 0)
+local StealBtn = Instance.new("TextButton")
+StealBtn.Size = UDim2.new(0.48, 0, 1, 0)
+StealBtn.Position = UDim2.new(0, 0, 0, 0)
 StealBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 StealBtn.Text = "STEAL"
 StealBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 StealBtn.Font = Enum.Font.SourceSansBold
 StealBtn.TextSize = 15
-Instance.new("UICorner", StealBtn).CornerRadius = UDim.new(0, 6)
+StealBtn.Parent = BottomFrame
 
-local StopBtn = Instance.new("TextButton", BottomFrame)
-StopBtn.Size = UDim2.new(0.5, -5, 1, 0)
-StopBtn.Position = UDim2.new(0.5, 5, 0, 0)
+local UICorner3 = Instance.new("UICorner")
+UICorner3.CornerRadius = UDim.new(0, 6)
+UICorner3.Parent = StealBtn
+
+local StopBtn = Instance.new("TextButton")
+StopBtn.Size = UDim2.new(0.48, 0, 1, 0)
+StopBtn.Position = UDim2.new(0.52, 0, 0, 0)
 StopBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 StopBtn.Text = "STOP"
 StopBtn.TextColor3 = Color3.fromRGB(255, 50, 50)
 StopBtn.Font = Enum.Font.SourceSansBold
 StopBtn.TextSize = 15
-Instance.new("UICorner", StopBtn).CornerRadius = UDim.new(0, 6)
+StopBtn.Parent = BottomFrame
 
--- ស្កេនរកពង
+local UICorner4 = Instance.new("UICorner")
+UICorner4.CornerRadius = UDim.new(0, 6)
+UICorner4.Parent = StopBtn
+
+print("Nhaz Hub: UI Loaded Successfully!")
+
 local function ScanEggs()
     local found = {}
     local seen = {}
@@ -119,7 +119,7 @@ local function ScanEggs()
                         
                         local valueStr = "Unknown"
                         local multStr = "1.0x"
-                        local iconId = "rbxassetid://7487019531" -- រូបភាពលំនាំដើម
+                        local iconId = "rbxassetid://7487019531"
                         
                         local bb = child:FindFirstChildWhichIsA("BillboardGui", true)
                         if bb then
@@ -160,25 +160,28 @@ local function UpdateUI()
     end
     
     local Eggs = ScanEggs()
+    print("Nhaz Hub: Found " .. #Eggs .. " eggs.")
     
     for _, data in ipairs(Eggs) do
-        local Btn = Instance.new("TextButton", Scroll)
+        local Btn = Instance.new("TextButton")
         Btn.Size = UDim2.new(1, -5, 0, 50)
         Btn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
         Btn.Text = ""
         Btn.AutoButtonColor = false
-        Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+        Btn.Parent = Scroll
 
-        -- រូបសត្វ
-        local Icon = Instance.new("ImageLabel", Btn)
+        local UC = Instance.new("UICorner")
+        UC.CornerRadius = UDim.new(0, 6)
+        UC.Parent = Btn
+
+        local Icon = Instance.new("ImageLabel")
         Icon.Size = UDim2.new(0, 40, 0, 40)
         Icon.Position = UDim2.new(0, 5, 0.5, -20)
         Icon.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
         Icon.Image = data.Icon
-        Instance.new("UICorner", Icon).CornerRadius = UDim.new(0, 4)
+        Icon.Parent = Btn
 
-        -- ឈ្មោះពង
-        local NameLbl = Instance.new("TextLabel", Btn)
+        local NameLbl = Instance.new("TextLabel")
         NameLbl.Size = UDim2.new(0.4, 0, 0, 20)
         NameLbl.Position = UDim2.new(0.16, 0, 0.1, 0)
         NameLbl.BackgroundTransparency = 1
@@ -187,9 +190,9 @@ local function UpdateUI()
         NameLbl.Font = Enum.Font.SourceSansBold
         NameLbl.TextSize = 14
         NameLbl.TextXAlignment = Enum.TextXAlignment.Left
+        NameLbl.Parent = Btn
 
-        -- តម្លៃ x
-        local MultLbl = Instance.new("TextLabel", Btn)
+        local MultLbl = Instance.new("TextLabel")
         MultLbl.Size = UDim2.new(0.2, 0, 0, 20)
         MultLbl.Position = UDim2.new(0.6, 0, 0.1, 0)
         MultLbl.BackgroundTransparency = 1
@@ -198,9 +201,9 @@ local function UpdateUI()
         MultLbl.Font = Enum.Font.SourceSansBold
         MultLbl.TextSize = 14
         MultLbl.TextXAlignment = Enum.TextXAlignment.Right
+        MultLbl.Parent = Btn
 
-        -- តម្លៃលុយ
-        local ValLbl = Instance.new("TextLabel", Btn)
+        local ValLbl = Instance.new("TextLabel")
         ValLbl.Size = UDim2.new(0.2, 0, 0, 20)
         ValLbl.Position = UDim2.new(0.8, 0, 0.1, 0)
         ValLbl.BackgroundTransparency = 1
@@ -209,16 +212,19 @@ local function UpdateUI()
         ValLbl.Font = Enum.Font.SourceSansBold
         ValLbl.TextSize = 14
         ValLbl.TextXAlignment = Enum.TextXAlignment.Right
+        ValLbl.Parent = Btn
 
-        -- បន្ទាត់ពណ៌ស្វាយខាងក្រោម (ដូច Miranda)
-        local Bar = Instance.new("Frame", Btn)
+        local Bar = Instance.new("Frame")
         Bar.Size = UDim2.new(0.35, 0, 0, 4)
         Bar.Position = UDim2.new(0.16, 0, 0.75, 0)
         Bar.BackgroundColor3 = Color3.fromRGB(80, 50, 150)
         Bar.BorderSizePixel = 0
-        Instance.new("UICorner", Bar).CornerRadius = UDim.new(1, 0)
+        Bar.Parent = Btn
 
-        -- ពេលចុចលើពង
+        local UCB = Instance.new("UICorner")
+        UCB.CornerRadius = UDim.new(1, 0)
+        UCB.Parent = Bar
+
         Btn.MouseButton1Click:Connect(function()
             SelectedEggObj = data.Model
             for _, c in pairs(Scroll:GetChildren()) do
@@ -230,7 +236,11 @@ local function UpdateUI()
     Scroll.CanvasSize = UDim2.new(0, 0, 0, #Eggs * 55)
 end
 
--- ចុច STEAL
+task.spawn(function()
+    task.wait(2) 
+    UpdateUI()
+end)
+
 StealBtn.MouseButton1Click:Connect(function()
     if not SelectedEggObj then
         local Eggs = ScanEggs()
@@ -241,7 +251,6 @@ StealBtn.MouseButton1Click:Connect(function()
     StealBtn.TextColor3 = Color3.fromRGB(0, 255, 127)
 end)
 
--- ចុច STOP
 StopBtn.MouseButton1Click:Connect(function()
     AutoSteal = false
     StealBtn.Text = "STEAL"
@@ -255,9 +264,6 @@ StopBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-task.spawn(function() task.wait(1) UpdateUI() end)
-
--- Main Loop (រត់ + លួច)
 task.spawn(function()
     while task.wait(0.2) do
         if AutoSteal and SelectedEggObj then
@@ -278,7 +284,7 @@ task.spawn(function()
                 local dist = (HRP.Position - targetPos).Magnitude
                 
                 if dist > 6 then
-                    Hum.WalkSpeed = RunSpeedFast
+                    Hum.WalkSpeed = RunSpeed
                     Hum:MoveTo(targetPos) 
                     
                     DropTimer = DropTimer + 0.2
@@ -294,7 +300,7 @@ task.spawn(function()
                         end
                     end
                 else
-                    Hum:MoveTo(HRP.Position) -- ឈប់
+                    Hum:MoveTo(HRP.Position)
                     
                     for _, v in pairs(SelectedEggObj:GetDescendants()) do
                         if v:IsA("ProximityPrompt") then
