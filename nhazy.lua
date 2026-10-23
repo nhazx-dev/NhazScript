@@ -1,5 +1,5 @@
--- [[ Nhaz Auto Steal - No Lag & True Values ]]
--- Optimized for Mobile | Run & Steal | Drop/Pickup 4s | Jungle to Enchanted
+-- [[ Nhaz Auto Steal - Instant Steal Fix ]]
+-- Run & Steal | Teleport on interact | Drop/Pickup | Reset Speed | Real Values
 
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
@@ -8,8 +8,7 @@ local LP = Players.LocalPlayer
 local AutoSteal = false
 local SelectedEggObj = nil
 local RunSpeed = 150
-local RunTime = 0
-local IsStealing = false
+local DropTimer = 0
 
 -- មុខងារបំប្លែងអក្សរទៅជាលេខ
 local function ParseValue(str)
@@ -24,58 +23,36 @@ local function ParseValue(str)
     else return num end
 end
 
--- ស្កេនរកពង (ធ្វើតែម្តង ដើម្បីកុំឱ្យគាំង)
+-- ស្កេនរកពងពិតៗក្នុង Map (កាត់ពងក្នុង Base ចោល)
 local function ScanMapEggs()
     local found = {}
     local seen = {}
     
-    -- ស្កេនតែក្នុង Folder ពង ឬ Workspace តែមួយជាន់សិន
-    for _, obj in ipairs(workspace:GetChildren()) do
-        if obj.Name:lower():find("egg") or obj.Name:lower():find("map") or obj.Name:lower():find("zone") then
-            for _, egg in ipairs(obj:GetDescendants()) do
-                if (egg:IsA("Model") or egg:IsA("Part")) and egg.Name:lower():find("egg") then
-                    local cleanName = egg.Name
-                    if not seen[cleanName] and not cleanName:lower():find("base") then
-                        seen[cleanName] = true
-                        local valueStr = "Unknown"
-                        local valueNum = 0
-                        
-                        -- អានតម្លៃពី Billboard
-                        local bb = egg:FindFirstChildWhichIsA("BillboardGui", true)
-                        if bb then
-                            local lbl = bb:FindFirstChildWhichIsA("TextLabel", true)
-                            if lbl and lbl.Text ~= "" then valueStr = lbl.Text end
-                        end
-                        
-                        valueNum = ParseValue(valueStr)
-                        table.insert(found, {Model = egg, Name = cleanName:gsub(" Egg", ""), ValueStr = valueStr, ValueNum = valueNum})
-                    end
-                end
-            end
-        end
-    end
-    
-    -- បើរកមិនឃើញក្នុង Folder សូមស្កេនពេញ Map (តែម្តង)
-    if #found == 0 then
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if (obj:IsA("Model") or obj:IsA("Part")) and obj.Name:lower():find("egg") then
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if (obj:IsA("Model") or obj:IsA("Part") or obj:IsA("MeshPart")) then
+            local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
+            local bb = obj:FindFirstChildWhichIsA("BillboardGui", true)
+            
+            -- យកតែពងដែលមាន ProximityPrompt និង BillboardGui (មិនយកពងក្នុង Base)
+            if prompt and bb and not obj.Name:lower():find("firstareaegg") and not obj.Name:lower():find("slot") then
                 local cleanName = obj.Name
                 if not seen[cleanName] then
                     seen[cleanName] = true
                     local valueStr = "Unknown"
-                    local valueNum = 0
-                    local bb = obj:FindFirstChildWhichIsA("BillboardGui", true)
-                    if bb then
-                        local lbl = bb:FindFirstChildWhichIsA("TextLabel", true)
-                        if lbl and lbl.Text ~= "" then valueStr = lbl.Text end
-                    end
-                    valueNum = ParseValue(valueStr)
-                    table.insert(found, {Model = obj, Name = cleanName:gsub(" Egg", ""), ValueStr = valueStr, ValueNum = valueNum})
+                    local lbl = bb:FindFirstChildWhichIsA("TextLabel", true)
+                    if lbl then valueStr = lbl.Text end
+                    
+                    local displayName = cleanName:gsub(" Egg", ""):gsub("_", " ")
+                    table.insert(found, {
+                        Model = obj, 
+                        Name = displayName, 
+                        ValueStr = valueStr, 
+                        ValueNum = ParseValue(valueStr)
+                    })
                 end
             end
         end
     end
-    
     table.sort(found, function(a, b) return a.ValueNum > b.ValueNum end)
     return found
 end
@@ -119,8 +96,8 @@ AutoBtn.Font = Enum.Font.SourceSansBold
 AutoBtn.TextSize = 14
 Instance.new("UICorner", AutoBtn).CornerRadius = UDim.new(0, 6)
 
-local RefreshBtn = Instance.new("TextButton", Main)
-RefreshBtn.Size = UDim2.new(0.4, 0, 0, 25)
+local, RefreshBtn = Instance.new("TextButton", Main)
+RefreshBtn.Size = UDim2.new(0.4 0, 0, 25)
 RefreshBtn.Position = UDim2.new(0.55, 0, 0, 50)
 RefreshBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
 RefreshBtn.Text = "Refresh Eggs"
@@ -189,6 +166,7 @@ AutoBtn.MouseButton1Click:Connect(function()
         if #eggs > 0 then SelectedEggObj = eggs[1].Model end
     end
     
+    -- កែបញ្ហាដើរយឺតពេលបិទ Auto
     if not AutoSteal then
         Status.Text = "Status: Stopped"
         local Char = LP.Character
@@ -202,18 +180,27 @@ end)
 
 -- Main Loop
 task.spawn(function()
-    while task.wait(0.2) do
+    while task.wait(0.1) do
         if AutoSteal and SelectedEggObj then
             local Char = LP.Character
             local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
             local Hum = Char and Char:FindFirstChild("Humanoid")
             
             if HRP and Hum then
+                -- បើពងនោះបាត់ (លួចបានហើយ) រកពងថ្មី
                 if not SelectedEggObj.Parent then
-                    Status.Text = "Egg gone! Finding new..."
+                    Status.Text = "Egg stolen! Finding new one..."
                     local eggs = ScanMapEggs()
-                    if #eggs > 0 then SelectedEggObj = eggs[1].Model else AutoSteal = false end
-                    task.wait(1)
+                    if #eggs > 0 then 
+                        SelectedEggObj = eggs[1].Model 
+                    else 
+                        SelectedEggObj = nil 
+                        AutoSteal = false 
+                        AutoBtn.Text = "Auto Steal: OFF"
+                        AutoBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+                        Hum.WalkSpeed = 16
+                    end
+                    task.wait(0.5)
                     continue
                 end
 
@@ -221,66 +208,64 @@ task.spawn(function()
                 local targetPos = eggPart.Position
                 local dist = (HRP.Position - targetPos).Magnitude
                 
-                if not IsStealing then
-                    if dist > 6 then
-                        -- រត់ទៅរកពង
-                        Status.Text = "Running to: "..SelectedEggObj.Name
-                        Hum.WalkSpeed = RunSpeed
-                        Hum:MoveTo(targetPos) 
-                        
-                        -- រាល់ពេលរត់បាន ៤ វិនាទី ទម្លាក់ និងរើសពងវិញ
-                        RunTime = RunTime + 0.2
-                        if RunTime >= 4 then
-                            RunTime = 0
-                            Status.Text = "Dropping & Equipping Egg..."
-                            Hum:UnequipTools()
-                            task.wait(0.1)
-                            local Backpack = LP:FindFirstChild("Backpack")
-                            if Backpack then
-                                for _, tool in ipairs(Backpack:GetChildren()) do
-                                    if tool:IsA("Tool") then
-                                        Hum:EquipTool(tool)
-                                        break
-                                    end
+                if dist > 8 then
+                    -- រត់ទៅរកពង
+                    Status.Text = "Running to: "..SelectedEggObj.Name
+                    Hum.WalkSpeed = RunSpeed
+                    Hum:MoveTo(targetPos) 
+                    
+                    -- ទម្លាក់ និងរើសពងវិញរាល់ ៤ វិនាទី
+                    DropTimer = DropTimer + 0.1
+                    if DropTimer >= 4 then
+                        DropTimer = 0
+                        Status.Text = "Dropping & Picking up..."
+                        Hum:UnequipTools()
+                        task.wait(0.1)
+                        local Backpack = LP:FindFirstChild("Backpack")
+                        if Backpack then
+                            for _, tool in ipairs(Backpack:GetChildren()) do
+                                if tool:IsA("Tool") then
+                                    Hum:EquipTool(tool)
+                                    break
                                 end
                             end
                         end
-                    else
-                        -- ដល់ហើយ ចាប់ផ្តើមលួច
-                        IsStealing = true
-                        Hum:MoveTo(HRP.Position) -- ឈប់រត់មួយភ្លែត
-                        Status.Text = "Stealing: "..SelectedEggObj.Name
-                        
-                        for _, v in pairs(SelectedEggObj:GetDescendants()) do
-                            if v:IsA("ProximityPrompt") then
-                                v.HoldDuration = 0
-                                v.MaxActivationDistance = 50
-                                v.Enabled = true
-                                pcall(function() fireproximityprompt(v) end)
-                            elseif v:IsA("ClickDetector") then
-                                pcall(function() fireclickdetector(v) end)
-                            end
-                        end
-                        
-                        task.wait(0.5) -- រង់ចាំបន្តិច
-                        
-                        -- រត់ថយក្រោយវិញ
-                        Status.Text = "Running back..."
-                        Hum.WalkSpeed = RunSpeed
-                        local backPos = HRP.Position + (HRP.Position - targetPos).Unit * 50
-                        Hum:MoveTo(backPos)
-                        task.wait(0.5)
-                        
-                        -- រើសពងថ្មី
-                        local eggs = ScanMapEggs()
-                        if #eggs > 0 then SelectedEggObj = eggs[1].Model end
-                        IsStealing = false
                     end
+                else
+                    -- ដល់ហើយ! បង្ខំឱ្យនៅជិតពងពិតៗ ដើម្បីឱ្យ Server ចាប់រាន់
+                    Hum:MoveTo(HRP.Position) 
+                    HRP.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0)) 
+                    task.wait(0.2) -- ចាំបន្តិចឱ្យ Server កត់ត្រាទីតាំង
+                    
+                    Status.Text = "Stealing: "..SelectedEggObj.Name
+                    for _, v in pairs(SelectedEggObj:GetDescendants()) do
+                        if v:IsA("ProximityPrompt") then
+                            v.MaxActivationDistance = 50
+                            pcall(function() fireproximityprompt(v) end)
+                        elseif v:IsA("ClickDetector") then
+                            pcall(function() fireclickdetector(v) end)
+                        end
+                    end
+                    
+                    task.wait(1.5) -- រង់ចាំឱ្យដំណើរការលួចបញ្ចប់
+                    
+                    -- រត់ថយក្រោយវិញ
+                    Status.Text = "Running back..."
+                    Hum.WalkSpeed = RunSpeed
+                    local backPos = HRP.Position + (HRP.Position - targetPos).Unit * 50
+                    Hum:MoveTo(backPos)
+                    task.wait(0.5)
+                    
+                    -- រើសពងថ្មីបន្ត
+                    local eggs = ScanMapEggs()
+                    if #eggs > 0 then SelectedEggObj = eggs[1].Model else SelectedEggObj = nil end
                 end
             end
         else
             local Hum = LP.Character and LP.Character:FindFirstChild("Humanoid")
-            if Hum and Hum.WalkSpeed ~= 16 then Hum.WalkSpeed = 16 end
+            if Hum and Hum.WalkSpeed ~= 16 and not AutoSteal then 
+                Hum.WalkSpeed = 16 
+            end
         end
     end
 end)
