@@ -1,5 +1,5 @@
--- [[ Nhaz Auto Steal - Real Map Eggs & Select ]]
--- True Values | Select Egg | Run & Steal | Drop/Pickup 4s | Reset Speed
+-- [[ Nhaz Auto Steal - No Lag & Show UI First ]]
+-- UI Loads Instantly | Background Scanner | Real Values | Base Filter
 
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
@@ -23,65 +23,7 @@ local function ParseValue(str)
     else return num end
 end
 
--- ស្កេនរកពងក្នុង Map (កាត់ Base និង FirstAreaEgg ចោល)
-local function ScanMapEggs()
-    local found = {}
-    local seen = {}
-    
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if (obj:IsA("Model") or obj:IsA("Part") or obj:IsA("MeshPart")) and obj.Name:lower():find("egg") then
-            local cleanName = obj.Name
-            local parentName = (obj.Parent and obj.Parent.Name or ""):lower()
-            
-            -- កាត់ឈ្មោះពងក្នុង Base ចោលដាច់ខាត
-            local isBaseEgg = cleanName:lower():find("firstarea") or cleanName:lower():find("slot") or cleanName:lower():find("holder") or parentName:find("base") or parentName:find("plot")
-            
-            if not isBaseEgg and not seen[cleanName] then
-                seen[cleanName] = true
-                local valueStr = "Unknown"
-                local valueNum = 0
-                local displayName = cleanName:gsub(" Egg", ""):gsub("_", " ")
-                
-                -- អានតម្លៃពិតពី Billboard
-                local bb = obj:FindFirstChildWhichIsA("BillboardGui", true)
-                if bb then
-                    local lbl = bb:FindFirstChildWhichIsA("TextLabel", true)
-                    if lbl and lbl.Text ~= "" then 
-                        valueStr = lbl.Text 
-                    end
-                end
-                
-                -- ស្កេនរកតម្លៃក្នុង TextLabel ផ្សេងទៀតបើមិនឃើញក្នុង Billboard
-                if valueStr == "Unknown" then
-                    for _, desc in ipairs(obj:GetDescendants()) do
-                        if desc:IsA("TextLabel") and (desc.Text:find("/s") or desc.Text:find("M") or desc.Text:find("B") or desc.Text:find("K") or desc.Text:find("T")) then
-                            valueStr = desc.Text
-                            break
-                        end
-                    end
-                end
-                
-                valueNum = ParseValue(valueStr)
-                
-                -- បើមានតម្លៃលុយ ឬជាពងពិត ទើបយក
-                if valueNum > 0 or valueStr ~= "Unknown" then
-                    table.insert(found, {
-                        Model = obj, 
-                        Name = displayName, 
-                        ValueStr = valueStr, 
-                        ValueNum = valueNum
-                    })
-                end
-            end
-        end
-    end
-    
-    -- តម្រៀបពីថ្លៃទៅថោក
-    table.sort(found, function(a, b) return a.ValueNum > b.ValueNum end)
-    return found
-end
-
--- UI Setup
+-- បង្កើត UI មុនគេ (ដើម្បីឱ្យវាលោតចេញមកភ្លាម)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Nhaz_Menu"
 ScreenGui.ResetOnSpawn = false
@@ -142,17 +84,72 @@ local Status = Instance.new("TextLabel", Main)
 Status.Size = UDim2.new(1, -20, 0, 20)
 Status.Position = UDim2.new(0, 10, 1, -25)
 Status.BackgroundTransparency = 1
-Status.Text = "Status: Ready"
+Status.Text = "Status: UI Loaded. Scanning Map..."
 Status.TextColor3 = Color3.fromRGB(255, 200, 0)
 Status.Font = Enum.Font.SourceSansBold
 Status.TextSize = 12
 Status.TextXAlignment = Enum.TextXAlignment.Left
 
+-- បង្ហាញ UI ភ្លាមៗ
+task.wait(0.1)
+Main.Visible = true
+
+-- មុខងារស្កេនរកពង (កាត់ Base ចោល)
+local function ScanMapEggs()
+    local found = {}
+    local seen = {}
+    
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if (obj:IsA("Model") or obj:IsA("Part") or obj:IsA("MeshPart")) and obj.Name:lower():find("egg") then
+            local cleanName = obj.Name
+            local parentName = (obj.Parent and obj.Parent.Name or ""):lower()
+            
+            local isBaseEgg = cleanName:lower():find("firstarea") or cleanName:lower():find("slot") or cleanName:lower():find("holder") or parentName:find("base") or parentName:find("plot")
+            
+            if not isBaseEgg and not seen[cleanName] then
+                seen[cleanName] = true
+                local valueStr = "Unknown"
+                local valueNum = 0
+                local displayName = cleanName:gsub(" Egg", ""):gsub("_", " ")
+                
+                local bb = obj:FindFirstChildWhichIsA("BillboardGui", true)
+                if bb then
+                    local lbl = bb:FindFirstChildWhichIsA("TextLabel", true)
+                    if lbl and lbl.Text ~= "" then valueStr = lbl.Text end
+                end
+                
+                if valueStr == "Unknown" then
+                    for _, desc in ipairs(obj:GetDescendants()) do
+                        if desc:IsA("TextLabel") and (desc.Text:find("/s") or desc.Text:find("M") or desc.Text:find("B") or desc.Text:find("K") or desc.Text:find("T")) then
+                            valueStr = desc.Text
+                            break
+                        end
+                    end
+                end
+                
+                valueNum = ParseValue(valueStr)
+                
+                if valueNum > 0 or valueStr ~= "Unknown" then
+                    table.insert(found, {Model = obj, Name = displayName, ValueStr = valueStr, ValueNum = valueNum})
+                end
+            end
+        end
+    end
+    table.sort(found, function(a, b) return a.ValueNum > b.ValueNum end)
+    return found
+end
+
+-- មុខងារ Update UI (ហៅពេលចុច Refresh ឬពេលបើកដំបូង)
 local function UpdateUI()
     for _, c in pairs(Scroll:GetChildren()) do
         if c:IsA("TextButton") then c:Destroy() end
     end
+    
+    Status.Text = "Status: Scanning Map..."
+    task.wait(0.1)
+    
     local MapEggs = ScanMapEggs()
+    
     for _, data in ipairs(MapEggs) do
         local Btn = Instance.new("TextButton", Scroll)
         Btn.Size = UDim2.new(1, -10, 0, 35)
@@ -175,10 +172,16 @@ local function UpdateUI()
         end)
     end
     Scroll.CanvasSize = UDim2.new(0, 0, 0, #MapEggs * 40)
+    Status.Text = "Status: Found "..#MapEggs.." eggs."
 end
 
+-- ដំណើរការស្កេននៅខាងក្រោយ
+task.spawn(function()
+    task.wait(1) -- រង់ចាំ UI បង្ហាញសិន
+    UpdateUI()
+end)
+
 RefreshBtn.MouseButton1Click:Connect(UpdateUI)
-UpdateUI()
 
 AutoBtn.MouseButton1Click:Connect(function()
     AutoSteal = not AutoSteal
@@ -190,7 +193,6 @@ AutoBtn.MouseButton1Click:Connect(function()
         if #eggs > 0 then SelectedEggObj = eggs[1].Model end
     end
     
-    -- បិទ Auto ត្រូវដើរធម្មតាវិញ
     if not AutoSteal then
         Status.Text = "Status: Stopped"
         local Char = LP.Character
@@ -212,14 +214,14 @@ task.spawn(function()
             
             if HRP and Hum then
                 if not SelectedEggObj.Parent then
-                    Status.Text = "Egg stolen!្ជ Finding new..."
+                    Status.Text = "Egg stolen! Finding new..."
                     local eggs = ScanMapEggs()
-                    if #eggs > 0 then SelectedEggObj = eggs[1].Model else AutoSteីal = false end
+                    if #eggs > 0 then SelectedEggObj = eggs[1].Model else AutoSteal = false end
                     task.wait(0.5)
                     continue
                 end
 
-                local eggPart = SelectedEggObj: ដFindFirstChildWhichIsA("BasePart") or SelectedEggObj
+                local eggPart = SelectedEggObj:FindFirstChildWhichIsA("BasePart") or SelectedEggObj
                 local targetPos = eggPart.Position
                 local dist = (HRP.Position - targetPos).Magnitude
                 
