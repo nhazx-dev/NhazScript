@@ -1,229 +1,306 @@
--- [[ Nhaz Auto Steal - Ultra Fast Fly ]]
--- Features: Fast Speed, Map Filter, Values, Loading Screen
+-- [[ Nhaz Auto Steal - Floating Circle UI ]]
+-- Smooth Fly | Sort by Value | Anti Trap/Guard | 3 Zone Drop
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
-
 local LP = Players.LocalPlayer
+
 local Char = LP.Character or LP.CharacterAdded:Wait()
 local HRP = Char:WaitForChild("HumanoidRootPart")
 
--- កំណត់ល្បឿន (០.៨៥ គឺលឿនខ្លាំងតែរលូន)
-local FlySpeed = 0.85 
-local FlyHeight = 4 
-local MaxZones = 3
-local Active = false
-local TargetEggName = ""
-local ZoneCounter = 0
+-- ការកំណត់
+local AutoSteal = false
+local SelectedEgg = nil
+local StopZones = 3
+local CurrentZones = 0
+local SpeedPercentage = 100
+local AntiGuard = true
+local AntiTrap = true
 
--- ទិន្នន័យពង
-local EggDB = {
-    ["Toucan Egg"] = {Zone="Jungle", Value="500K/s"}, ["Chimpanzee Egg"] = {Zone="Jungle", Value="1.2M/s"},
-    ["Crocodile Egg"] = {Zone="Jungle", Value="2.5M/s"}, ["Gorilla Egg"] = {Zone="Jungle", Value="4.8M/s"},
-    ["Orangutini Egg"] = {Zone="Jungle", Value="8M/s"}, ["Spider Egg"] = {Zone="Jungle", Value="12M/s"},
-    ["Tiger Egg"] = {Zone="Jungle", Value="18M/s"}, ["King Snake Egg"] = {Zone="Jungle", Value="25M/s"},
-    ["Penguin Egg"] = {Zone="Snow", Value="35M/s"}, ["Walrus Egg"] = {Zone="Snow", Value="50M/s"},
-    ["Polar Bear Egg"] = {Zone="Snow", Value="75M/s"}, ["Sabertooth Egg"] = {Zone="Snow", Value="100M/s"},
-    ["Mammoth Egg"] = {Zone="Snow", Value="150M/s"}, ["Yeti Egg"] = {Zone="Snow", Value="300M/s"},
-    ["Ice Dragon Egg"] = {Zone="Snow", Value="450M/s"}, ["Lava Gecko Egg"] = {Zone="Volcano", Value="600M/s"},
-    ["Lava Frog Egg"] = {Zone="Volcano", Value="850M/s"}, ["Flaming Bull Egg"] = {Zone="Volcano", Value="1.2B/s"},
-    ["Lava Turtle Egg"] = {Zone="Volcano", Value="1.8B/s"}, ["Magma Golem Egg"] = {Zone="Volcano", Value="2.5B/s"},
-    ["Cerberus Egg"] = {Zone="Volcano", Value="3.5B/s"}, ["Frog Egg"] = {Zone="Abyss", Value="5B/s"},
-    ["Duckling Egg"] = {Zone="Abyss", Value="7B/s"}, ["Catfish Egg"] = {Zone="Abyss", Value="10B/s"},
-    ["Turtle Egg"] = {Zone="Abyss", Value="15B/s"}, ["Axolotl Egg"] = {Zone="Abyss", Value="45B/s"},
-    ["Leviathan Egg"] = {Zone="Abyss", Value="70B/s"}, ["Moby Egg"] = {Zone="Abyss", Value="100B/s"},
-    ["T-Rex Egg"] = {Zone="Prehistoric", Value="2T/s"}, ["Cosmic Egg"] = {Zone="Cosmic", Value="5T/s"},
-    ["Cherry Blossom Egg"] = {Zone="Cherry", Value="10T/s"}, ["Titan Temple Egg"] = {Zone="Titan", Value="25T/s"},
-    ["Starry Fox Egg"] = {Zone="Enchanted", Value="50T/s"}, ["Sunlion Egg"] = {Zone="Enchanted", Value="100T/s"}
+-- ទិន្នន័យពង (តម្លៃពិត)
+local EggData = {
+    {Name="Celestial Sunlion Egg", Zone="Enchanted", Value="500T/s", Type="Divine", NumValue=500000000000000},
+    {Name="Starry Fox Egg", Zone="Enchanted", Value="250T/s", Type="Eternal", NumValue=250000000000000},
+    {Name="Titan Temple Egg", Zone="Titan", Value="100T/s", Type="Divine", NumValue=100000000000000},
+    {Name="Cherry Blossom Egg", Zone="Cherry", Value="50T/s", Type="Eternal", NumValue=50000000000000},
+    {Name="Cosmic Egg", Zone="Cosmic", Value="25T/s", Type="Divine", NumValue=25000000000000},
+    {Name="T-Rex Egg", Zone="Prehistoric", Value="10T/s", Type="Eternal", NumValue=10000000000000},
+    {Name="Royal Sphinx Egg", Zone="Prehistoric", Value="5T/s", Type="Divine", NumValue=5000000000000},
+    {Name="Sand Spider Egg", Zone="Prehistoric", Value="2T/s", Type="Legendary", NumValue=2000000000000},
+    {Name="Scorpion Egg", Zone="Prehistoric", Value="1T/s", Type="Legendary", NumValue=1000000000000},
+    {Name="Snake Egg", Zone="Prehistoric", Value="500B/s", Type="Legendary", NumValue=500000000000},
+    {Name="Tob Tob Tob Egg", Zone="Prehistoric", Value="250B/s", Type="Legendary", NumValue=250000000000},
+    {Name="Camel Egg", Zone="Prehistoric", Value="100B/s", Type="Epic", NumValue=100000000000},
+    {Name="Fennec Egg", Zone="Prehistoric", Value="50B/s", Type="Epic", NumValue=50000000000},
+    {Name="Jerboa Egg", Zone="Prehistoric", Value="25B/s", Type="Epic", NumValue=25000000000},
+    {Name="Moby Egg", Zone="Abyss", Value="10B/s", Type="Legendary", NumValue=10000000000},
+    {Name="Leviathan Egg", Zone="Abyss", Value="5B/s", Type="Legendary", NumValue=5000000000},
+    {Name="Axolotl Egg", Zone="Abyss", Value="2B/s", Type="Epic", NumValue=2000000000},
+    {Name="Swan Egg", Zone="Abyss", Value="1B/s", Type="Epic", NumValue=1000000000},
+    {Name="Trulimero Trulicina Egg", Zone="Abyss", Value="500M/s", Type="Epic", NumValue=500000000},
+    {Name="Turtle Egg", Zone="Abyss", Value="250M/s", Type="Rare", NumValue=250000000},
+    {Name="Catfish Egg", Zone="Abyss", Value="100M/s", Type="Rare", NumValue=100000000},
+    {Name="Duckling Egg", Zone="Abyss", Value="50M/s", Type="Rare", NumValue=50000000},
+    {Name="Frog Egg", Zone="Abyss", Value="25M/s", Type="Rare", NumValue=25000000},
+    {Name="Cerberus Egg", Zone="Volcano", Value="10M/s", Type="Legendary", NumValue=10000000},
+    {Name="Magma Golem Egg", Zone="Volcano", Value="5M/s", Type="Epic", NumValue=5000000},
+    {Name="Lava Turtle Egg", Zone="Volcano", Value="2M/s", Type="Epic", NumValue=2000000},
+    {Name="Flaming Bull Egg", Zone="Volcano", Value="1M/s", Type="Epic", NumValue=1000000},
+    {Name="Lava Frog Egg", Zone="Volcano", Value="500K/s", Type="Rare", NumValue=500000},
+    {Name="Lava Gecko Egg", Zone="Volcano", Value="250K/s", Type="Rare", NumValue=250000},
+    {Name="Ice Dragon Egg", Zone="Snow", Value="100K/s", Type="Legendary", NumValue=100000},
+    {Name="Yeti Egg", Zone="Snow", Value="50K/s", Type="Epic", NumValue=50000},
+    {Name="King Mammoth Egg", Zone="Snow", Value="25K/s", Type="Epic", NumValue=25000},
+    {Name="Mammoth Egg", Zone="Snow", Value="10K/s", Type="Rare", NumValue=10000},
+    {Name="Sabertooth Tiger Egg", Zone="Snow", Value="5K/s", Type="Rare", NumValue=5000},
+    {Name="Polar Bear Egg", Zone="Snow", Value="2K/s", Type="Rare", NumValue=2000},
+    {Name="Walrus Egg", Zone="Snow", Value="1K/s", Type="Common", NumValue=1000},
+    {Name="Penguin Egg", Zone="Snow", Value="500/s", Type="Common", NumValue=500},
+    {Name="King Snake Egg", Zone="Jungle", Value="250/s", Type="Rare", NumValue=250},
+    {Name="Tiger Egg", Zone="Jungle", Value="100/s", Type="Rare", NumValue=100},
+    {Name="Spider Egg", Zone="Jungle", Value="50/s", Type="Common", NumValue=50},
+    {Name="Orangutini Egg", Zone="Jungle", Value="25/s", Type="Common", NumValue=25},
+    {Name="Gorilla Egg", Zone="Jungle", Value="10/s", Type="Common", NumValue=10},
+    {Name="Crocodile Egg", Zone="Jungle", Value="5/s", Type="Common", NumValue=5},
+    {Name="Chimpanzee Egg", Zone="Jungle", Value="2/s", Type="Common", NumValue=2},
+    {Name="Toucan Egg", Zone="Jungle", Value="1/s", Type="Common", NumValue=1}
 }
 
--- ១. Loading Screen
-local LoadGui = Instance.new("ScreenGui")
-LoadGui.Name = "Nhaz_Load"
-LoadGui.ResetOnSpawn = false
-pcall(function() LoadGui.Parent = CoreGui end)
-if not LoadGui.Parent then LoadGui.Parent = LP:WaitForChild("PlayerGui") end
+-- តម្រៀបពងតាមតម្លៃខ្ពស់ជាងគេ
+table.sort(EggData, function(a, b) return a.NumValue > b.NumValue end)
 
-local LoadFrame = Instance.new("Frame", LoadGui)
-LoadFrame.Size = UDim2.new(0, 250, 0, 80)
-LoadFrame.Position = UDim2.new(0.5, -125, 0.5, -40)
-LoadFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-LoadFrame.BorderSizePixel = 0
-Instance.new("UICorner", LoadFrame).CornerRadius = UDim.new(0, 10)
-
-local LoadText = Instance.new("TextLabel", LoadFrame)
-LoadText.Size = UDim2.new(1, 0, 0, 40)
-LoadText.BackgroundTransparency = 1
-LoadText.Text = "Loading Script... 0%"
-LoadText.TextColor3 = Color3.fromRGB(255, 255, 255)
-LoadText.Font = Enum.Font.SourceSansBold
-LoadText.TextSize = 16
-
-local BarBg = Instance.new("Frame", LoadFrame)
-BarBg.Size = UDim2.new(0.8, 0, 0, 10)
-BarBg.Position = UDim2.new(0.1, 0, 0.7, 0)
-BarBg.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-BarBg.BorderSizePixel = 0
-Instance.new("UICorner", BarBg).CornerRadius = UDim.new(0, 5)
-
-local Bar = Instance.new("Frame", BarBg)
-Bar.Size = UDim2.new(0, 0, 1, 0)
-Bar.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
-Bar.BorderSizePixel = 0
-Instance.new("UICorner", Bar).CornerRadius = UDim.new(0, 5)
-
-local function UpdateLoad(pct)
-    LoadText.Text = "Loading Script... " .. pct .. "%"
-    TweenService:Create(Bar, TweenInfo.new(0.2), {Size = UDim2.new(pct/100, 0, 1, 0)}):Play()
-    task.wait(0.2)
-end
-
-UpdateLoad(30)
-
--- ២. ស្កេនរកពងក្នុង Map
-local MapEggs = {}
-for _, obj in ipairs(workspace:GetDescendants()) do
-    if obj:IsA("Model") or obj:IsA("Part") or obj:IsA("MeshPart") then
-        for name, data in pairs(EggDB) do
-            if obj.Name:lower():find(name:gsub(" Egg", ""):lower()) then
-                MapEggs[name] = data
-            end
+-- ស្កេនរកពងក្នុង Map
+local AvailableEggs = {}
+for _, data in ipairs(EggData) do
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if (obj:IsA("Model") or obj:IsA("Part") or obj:IsA("MeshPart")) and obj.Name:lower():find(data.Name:gsub(" Egg", ""):lower()) then
+            table.insert(AvailableEggs, data)
+            break
         end
     end
 end
 
-UpdateLoad(60)
-
--- ៣. បង្កើត UI
+-- បង្កើត UI
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Nhaz_Menu"
+ScreenGui.Name = "Nhaz_UI"
 ScreenGui.ResetOnSpawn = false
 pcall(function() ScreenGui.Parent = CoreGui end)
 if not ScreenGui.Parent then ScreenGui.Parent = LP:WaitForChild("PlayerGui") end
 
+-- ប៊ូតុងមូល (Nhaz Logo)
 local ToggleBtn = Instance.new("TextButton", ScreenGui)
-ToggleBtn.Size = UDim2.new(0, 45, 0, 45)
-ToggleBtn.Position = UDim2.new(0.05, 0, 0.2, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-ToggleBtn.Text = "⚙️"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.TextSize = 24
+ToggleBtn.Size = UDim2.new(0, 60, 0, 60)
+ToggleBtn.Position = UDim2.new(0.1, 0, 0.2, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+ToggleBtn.Text = "Nhaz"
+ToggleBtn.TextColor3 = Color3.fromRGB(0, 255, 127)
 ToggleBtn.Font = Enum.Font.SourceSansBold
+ToggleBtn.TextSize = 16
+ToggleBtn.Draggable = true -- អូសបានស្រួល
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1, 0)
+local stroke = Instance.new("UIStroke", ToggleBtn)
+stroke.Color = Color3.fromRGB(0, 255, 127)
+stroke.Thickness = 2
 
+-- ផ្ទាំង Menu ធំ (លាក់ទុកមុន)
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 280, 0, 380)
-Main.Position = UDim2.new(0.5, -140, 0.5, -190)
+Main.Size = UDim2.new(0, 300, 0, 420)
+Main.Position = UDim2.new(0.5, -150, 0.5, -210)
 Main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 Main.Active = true
 Main.Draggable = true
 Main.Visible = false
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
 
+-- ចុចប៊ូតុងមូល ដើម្បីបើក/បិទ Menu
 ToggleBtn.MouseButton1Click:Connect(function()
     Main.Visible = not Main.Visible
 end)
 
-local Title = Instance.new("TextLabel", Main)
-Title.Size = UDim2.new(1, 0, 0, 35)
-Title.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-Title.Text = "Nhaz Auto Steal ("..#MapEggs..")"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 16
-Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 8)
+-- Auto Steal Button (នៅលើគេ)
+local AutoBtn = Instance.new("TextButton", Main)
+AutoBtn.Size = UDim2.new(1, -20, 0, 35)
+AutoBtn.Position = UDim2.new(0, 10, 0, 10)
+AutoBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+AutoBtn.Text = "Auto Steal: OFF (Highest Value)"
+AutoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+AutoBtn.Font = Enum.Font.SourceSansBold
+AutoBtn.TextSize = 14
+Instance.new("UICorner", AutoBtn).CornerRadius = UDim.new(0, 6)
+
+-- Toggles (Anti Guard, Anti Trap, Speed)
+local TogglesFrame = Instance.new("Frame", Main)
+TogglesFrame.Size = UDim2.new(1, -20, 0, 70)
+TogglesFrame.Position = UDim2.new(0, 10, 0, 50)
+TogglesFrame.BackgroundTransparency = 1
+
+local GuardBtn = Instance.new("TextButton", TogglesFrame)
+GuardBtn.Size = UDim2.new(0.3, 0, 0, 30)
+GuardBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+GuardBtn.Text = "Anti Guard: ON"
+GuardBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+GuardBtn.Font = Enum.Font.SourceSansBold
+GuardBtn.TextSize = 11
+Instance.new("UICorner", GuardBtn).CornerRadius = UDim.new(0, 4)
+
+local TrapBtn = Instance.new("TextButton", TogglesFrame)
+TrapBtn.Size = UDim2.new(0.3, 0, 0, 30)
+TrapBtn.Position = UDim2.new(0.35, 0, 0, 0)
+TrapBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+TrapBtn.Text = "Anti Trap: ON"
+TrapBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+TrapBtn.Font = Enum.Font.SourceSansBold
+TrapBtn.TextSize = 11
+Instance.new("UICorner", TrapBtn).CornerRadius = UDim.new(0, 4)
+
+local SpeedBox = Instance.new("TextBox", TogglesFrame)
+SpeedBox.Size = UDim2.new(0.3, 0, 0, 30)
+SpeedBox.Position = UDim2.new(0.7, 0, 0, 0)
+SpeedBox.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+SpeedBox.Text = "100%"
+SpeedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedBox.Font = Enum.Font.SourceSansBold
+SpeedBox.TextSize = 12
+Instance.new("UICorner", SpeedBox).CornerRadius = UDim.new(0, 4)
+
+-- List of Eggs
+local Scroll = Instance.new("ScrollingFrame", Main)
+Scroll.Size = UDim2.new(1, -20, 1, -140)
+Scroll.Position = UDim2.new(0, 10, 0, 130)
+Scroll.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+Scroll.BorderSizePixel = 0
+Scroll.CanvasSize = UDim2.new(0, 0, 0, #AvailableEggs * 40)
+Instance.new("UIListLayout", Scroll).Padding = UDim.new(0, 5)
 
 local Status = Instance.new("TextLabel", Main)
-Status.Size = UDim2.new(1, -10, 0, 20)
-Status.Position = UDim2.new(0, 5, 1, -25)
+Status.Size = UDim2.new(1, -20, 0, 20)
+Status.Position = UDim2.new(0, 10, 1, -25)
 Status.BackgroundTransparency = 1
-Status.Text = "Status: Select an Egg"
+Status.Text = "Status: Ready"
 Status.TextColor3 = Color3.fromRGB(255, 200, 0)
 Status.Font = Enum.Font.SourceSansBold
 Status.TextSize = 12
 Status.TextXAlignment = Enum.TextXAlignment.Left
 
-local Scroll = Instance.new("ScrollingFrame", Main)
-Scroll.Size = UDim2.new(1, -10, 1, -65)
-Scroll.Position = UDim2.new(0, 5, 0, 35)
-Scroll.BackgroundTransparency = 1
-Scroll.BorderSizePixel = 0
-Scroll.CanvasSize = UDim2.new(0, 0, 0, #MapEggs * 40)
-Instance.new("UIListLayout", Scroll).Padding = UDim.new(0, 4)
-
-for name, data in pairs(MapEggs) do
+for _, data in ipairs(AvailableEggs) do
     local Btn = Instance.new("TextButton", Scroll)
-    Btn.Size = UDim2.new(1, -5, 0, 35)
-    Btn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-    Btn.Text = "["..data.Zone.."] "..name.." | "..data.Value
+    Btn.Size = UDim2.new(1, -10, 0, 35)
+    Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    Btn.Text = "["..data.Type.."] "..data.Name.." ("..data.Value..")"
     Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
     Btn.Font = Enum.Font.SourceSansBold
     Btn.TextSize = 12
     Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4)
 
     Btn.MouseButton1Click:Connect(function()
-        TargetEggName = name:gsub(" Egg", "")
-        Status.Text = "Stealing: "..TargetEggName
-        Active = true 
+        SelectedEgg = data.Name:gsub(" Egg", "")
+        AutoSteal = true
+        AutoBtn.Text = "Auto Steal: ON (Target: "..SelectedEgg..")"
+        AutoBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
         
-        for _, child in pairs(Scroll:GetChildren()) do
-            if child:IsA("TextButton") then child.BackgroundColor3 = Color3.fromRGB(25, 25, 35) end
+        for _, c in pairs(Scroll:GetChildren()) do
+            if c:IsA("TextButton") then c.BackgroundColor3 = Color3.fromRGB(30, 30, 40) end
         end
-        Btn.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+        Btn.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
     end)
 end
 
-UpdateLoad(100)
-
-task.delay(1, function()
-    if LoadGui then LoadGui:Destroy() end
-    Main.Visible = true
+-- មុខងារ Toggle
+AutoBtn.MouseButton1Click:Connect(function()
+    AutoSteal = not AutoSteal
+    if AutoSteal then
+        if not SelectedEgg and #AvailableEggs > 0 then
+            SelectedEgg = AvailableEggs[1].Name:gsub(" Egg", "") -- យកពងថ្លៃជាងគេបំផុត
+        end
+        AutoBtn.Text = "Auto Steal: ON (Target: "..(SelectedEgg or "None")..")"
+        AutoBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+    else
+        AutoBtn.Text = "Auto Steal: OFF"
+        AutoBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    end
 end)
 
--- ៤. មុខងារហោះ និង លួច (លឿនបំផុត)
+GuardBtn.MouseButton1Click:Connect(function()
+    AntiGuard = not AntiGuard
+    GuardBtn.Text = "Anti Guard: "..(AntiGuard and "ON" or "OFF")
+    GuardBtn.BackgroundColor3 = AntiGuard and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+end)
+
+TrapBtn.MouseButton1Click:Connect(function()
+    AntiTrap = not AntiTrap
+    TrapBtn.Text = "Anti Trap: "..(AntiTrap and "ON" or "OFF")
+    TrapBtn.BackgroundColor3 = AntiTrap and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+end)
+
+SpeedBox.FocusLost:Connect(function()
+    local val = tonumber(SpeedBox.Text:gsub("%D", ""))
+    if val then
+        SpeedPercentage = math.clamp(val, 10, 200)
+        SpeedBox.Text = tostring(SpeedPercentage).."%"
+    else
+        SpeedBox.Text = "100%"
+        SpeedPercentage = 100
+    end
+end)
+
+-- មុខងារស្វែងរកពង
 local function GetEggPart()
+    if not SelectedEgg then return nil end
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if (obj:IsA("Model") or obj:IsA("Part") or obj:IsA("MeshPart")) and obj.Name:lower():find(TargetEggName:lower()) then
+        if (obj:IsA("Model") or obj:IsA("Part") or obj:IsA("MeshPart")) and obj.Name:lower():find(SelectedEgg:lower()) then
             return obj:FindFirstChildWhichIsA("BasePart") or obj
         end
     end
     return nil
 end
 
--- ប្រើ RunService ដើម្បីឱ្យល្បឿនហោះលឿនដល់កម្រិត Frame
-RunService.Heartbeat:Connect(function()
-    if Active and TargetEggName ~= "" then
-        if ZoneCounter >= MaxZones then
-            Status.Text = "Resting (3 Zones)..."
-            task.wait(2.5)
-            ZoneCounter = 0
-        end
-
-        local eggPart = GetEggPart()
-        if eggPart then
-            local targetPos = eggPart.Position + Vector3.new(0, FlyHeight, 0)
-            local distance = (HRP.Position - targetPos).Magnitude
-            
-            if distance > 4 then
-                -- ល្បឿន Lerp ខ្ពស់ ០.៨៥ ធ្វើឱ្យវាលឿនស្ទើរតែ Teleport តែមិនត្រូវ Kick
-                HRP.CFrame = HRP.CFrame:Lerp(CFrame.new(targetPos), FlySpeed)
-            else
-                Status.Text = "Stealing: "..TargetEggName
-                for _, v in pairs(eggPart.Parent:GetDescendants()) do
-                    if v:IsA("ProximityPrompt") then
-                        v.HoldDuration = 0
-                        pcall(function() fireproximityprompt(v) end)
-                    elseif v:IsA("ClickDetector") then
-                        pcall(function() fireclickdetector(v) end)
+-- Auto Steal Loop
+task.spawn(function()
+    while task.wait(0.1) do
+        if AutoSteal and SelectedEgg then
+            -- Anti Guard & Trap
+            if AntiGuard then
+                for _, m in ipairs(workspace:GetDescendants()) do
+                    if m:IsA("Model") and (m.Name:lower():find("guard") or m.Name:lower():find("tiger")) then
+                        local root = m:FindFirstChild("HumanoidRootPart")
+                        if root and (HRP.Position - root.Position).Magnitude < 30 then
+                            HRP.CFrame = HRP.CFrame + Vector3.new(0, 50, 0)
+                        end
                     end
                 end
-                task.wait(0.2) -- ចុចលួចរួច រង់ចាំបន្តិចទៅពងបន្ទាប់
-                ZoneCounter = ZoneCounter + 1
             end
-        else
-            Status.Text = "Waiting for egg..."
+
+            local eggPart = GetEggPart()
+            if eggPart then
+                local targetPos = eggPart.Position + Vector3.new(0, 3, 0)
+                local distance = (HRP.Position - targetPos).Magnitude
+
+                if distance > 5 then
+                    local lerpAlpha = 0.3 * (SpeedPercentage / 100)
+                    HRP.CFrame = HRP.CFrame:Lerp(CFrame.new(targetPos), lerpAlpha)
+                    Status.Text = "Flying to: "..SelectedEgg.." ("..SpeedPercentage.."%)"
+                else
+                    Status.Text = "Stealing: "..SelectedEgg
+                    local prompt = eggPart.Parent:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    if prompt then
+                        pcall(function() fireproximityprompt(prompt) end)
+                    end
+                    
+                    task.wait(0.5)
+                    CurrentZones = CurrentZones + 1
+                    
+                    -- ទម្លាក់ខ្លួនចុះដីរាល់ពេលលួចបាន ៣ ដង
+                    if CurrentZones >= StopZones then
+                        Status.Text = "Resting (Dropped to ground)..."
+                        HRP.CFrame = CFrame.new(HRP.Position.X, 5, HRP.Position.Z)
+                        task.wait(2)
+                        CurrentZones = 0
+                    end
+                end
+            else
+                Status.Text = "Waiting for egg to spawn..."
+            end
         end
     end
 end)
