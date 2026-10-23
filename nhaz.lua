@@ -1,14 +1,16 @@
--- [[ Nhaz Auto Steal - No Lag & Show UI First ]]
--- UI Loads Instantly | Background Scanner | Real Values | Base Filter
+-- [[ Nhaz Auto Steal - Pathfinding & Slow Mode ]]
+-- Pathfinding Run | No Drop Spam | Slow Mode | Real Values
 
 local Players = game:GetService("Players")
+local PathfindingService = game:GetService("PathfindingService")
 local CoreGui = game:GetService("CoreGui")
 local LP = Players.LocalPlayer
 
 local AutoSteal = false
 local SelectedEggObj = nil
-local RunSpeed = 150
-local DropTimer = 0
+local IsSlowMode = false
+local RunSpeedFast = 150
+local RunSpeedSlow = 50
 
 -- មុខងារបំប្លែងអក្សរទៅជាលេខ
 local function ParseValue(str)
@@ -23,9 +25,9 @@ local function ParseValue(str)
     else return num end
 end
 
--- បង្កើត UI មុនគេ (ដើម្បីឱ្យវាលោតចេញមកភ្លាម)
+-- UI Setup
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Nhaz_Menu"
+ScreenGui.Name = "Nhaz_Menu_Final"
 ScreenGui.ResetOnSpawn = false
 pcall(function() ScreenGui.Parent = CoreGui end)
 if not ScreenGui.Parent then ScreenGui.Parent = LP:WaitForChild("PlayerGui") end
@@ -62,6 +64,16 @@ AutoBtn.Font = Enum.Font.SourceSansBold
 AutoBtn.TextSize = 14
 Instance.new("UICorner", AutoBtn).CornerRadius = UDim.new(0, 6)
 
+local SlowModeBtn = Instance.new("TextButton", Main)
+SlowModeBtn.Size = UDim2.new(0.4, 0, 0, 25)
+SlowModeBtn.Position = UDim2.new(0.05, 0, 0, 50)
+SlowModeBtn.BackgroundColor3 = Color3.fromRGB(150, 150, 50)
+SlowModeBtn.Text = "Slow Mode: OFF"
+SlowModeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SlowModeBtn.Font = Enum.Font.SourceSansBold
+SlowModeBtn.TextSize = 11
+Instance.new("UICorner", SlowModeBtn).CornerRadius = UDim.new(0, 4)
+
 local RefreshBtn = Instance.new("TextButton", Main)
 RefreshBtn.Size = UDim2.new(0.4, 0, 0, 25)
 RefreshBtn.Position = UDim2.new(0.55, 0, 0, 50)
@@ -69,7 +81,7 @@ RefreshBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
 RefreshBtn.Text = "Refresh Eggs"
 RefreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 RefreshBtn.Font = Enum.Font.SourceSansBold
-RefreshBtn.TextSize = 12
+RefreshBtn.TextSize = 11
 Instance.new("UICorner", RefreshBtn).CornerRadius = UDim.new(0, 4)
 
 local Scroll = Instance.new("ScrollingFrame", Main)
@@ -84,17 +96,16 @@ local Status = Instance.new("TextLabel", Main)
 Status.Size = UDim2.new(1, -20, 0, 20)
 Status.Position = UDim2.new(0, 10, 1, -25)
 Status.BackgroundTransparency = 1
-Status.Text = "Status: UI Loaded. Scanning Map..."
+Status.Text = "Status: UI Loaded."
 Status.TextColor3 = Color3.fromRGB(255, 200, 0)
 Status.Font = Enum.Font.SourceSansBold
 Status.TextSize = 12
 Status.TextXAlignment = Enum.TextXAlignment.Left
 
--- បង្ហាញ UI ភ្លាមៗ
 task.wait(0.1)
 Main.Visible = true
 
--- មុខងារស្កេនរកពង (កាត់ Base ចោល)
+-- មុខងារស្កេនរកពង
 local function ScanMapEggs()
     local found = {}
     local seen = {}
@@ -104,6 +115,7 @@ local function ScanMapEggs()
             local cleanName = obj.Name
             local parentName = (obj.Parent and obj.Parent.Name or ""):lower()
             
+            -- កាត់ពងក្នុង Base ចោល
             local isBaseEgg = cleanName:lower():find("firstarea") or cleanName:lower():find("slot") or cleanName:lower():find("holder") or parentName:find("base") or parentName:find("plot")
             
             if not isBaseEgg and not seen[cleanName] then
@@ -139,7 +151,6 @@ local function ScanMapEggs()
     return found
 end
 
--- មុខងារ Update UI (ហៅពេលចុច Refresh ឬពេលបើកដំបូង)
 local function UpdateUI()
     for _, c in pairs(Scroll:GetChildren()) do
         if c:IsA("TextButton") then c:Destroy() end
@@ -175,13 +186,18 @@ local function UpdateUI()
     Status.Text = "Status: Found "..#MapEggs.." eggs."
 end
 
--- ដំណើរការស្កេននៅខាងក្រោយ
 task.spawn(function()
-    task.wait(1) -- រង់ចាំ UI បង្ហាញសិន
+    task.wait(1)
     UpdateUI()
 end)
 
 RefreshBtn.MouseButton1Click:Connect(UpdateUI)
+
+SlowModeBtn.MouseButton1Click:Connect(function()
+    IsSlowMode = not IsSlowMode
+    SlowModeBtn.Text = "Slow Mode: "..(IsSlowMode and "ON" or "OFF")
+    SlowModeBtn.BackgroundColor3 = IsSlowMode and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 150, 50)
+end)
 
 AutoBtn.MouseButton1Click:Connect(function()
     AutoSteal = not AutoSteal
@@ -203,6 +219,38 @@ AutoBtn.MouseButton1Click:Connect(function()
         end
     end
 end)
+
+-- មុខងាររត់ដោយប្រើ Pathfinding (វាងជញ្ជាំង)
+local function RunToTarget(targetPos)
+    local Char = LP.Character
+    local Hum = Char and Char:FindFirstChild("Humanoid")
+    local HRP = Char and Char:FindFirstChild("HumanoidRootPart")
+    if not Hum or not HRP then return end
+    
+    local path = PathfindingService:CreatePath({
+        AgentRadius = 2,
+        AgentHeight = 5,
+        AgentCanJump = true
+    })
+    
+    local success, errorMessage = pcall(function()
+        path:ComputeAsync(HRP.Position, targetPos)
+    end)
+    
+    if success and path.Status == Enum.PathStatus.Success then
+        for _, waypoint in ipairs(path:GetWaypoints()) do
+            if not AutoSteal then break end
+            Hum:MoveTo(waypoint.Position)
+            if waypoint.Action == Enum.PathWaypointAction.Jump then
+                Hum.Jump = true
+            end
+            Hum.MoveToFinished:Wait(0.5)
+        end
+    else
+        -- បើ Path មិនដើរ ប្រើ MoveTo ធម្មតា
+        Hum:MoveTo(targetPos)
+    end
+end
 
 -- Main Loop
 task.spawn(function()
@@ -227,27 +275,10 @@ task.spawn(function()
                 
                 if dist > 6 then
                     Status.Text = "Running to: "..SelectedEggObj.Name
-                    Hum.WalkSpeed = RunSpeed
-                    Hum:MoveTo(targetPos) 
-                    
-                    DropTimer = DropTimer + 0.1
-                    if DropTimer >= 4 then
-                        DropTimer = 0
-                        Status.Text = "Dropping & Picking up..."
-                        Hum:UnequipTools()
-                        task.wait(0.1)
-                        local Backpack = LP:FindFirstChild("Backpack")
-                        if Backpack then
-                            for _, tool in ipairs(Backpack:GetChildren()) do
-                                if tool:IsA("Tool") then
-                                    Hum:EquipTool(tool)
-                                    break
-                                end
-                            end
-                        end
-                    end
+                    Hum.WalkSpeed = IsSlowMode and RunSpeedSlow or RunSpeedFast
+                    RunToTarget(targetPos)
                 else
-                    Hum:MoveTo(HRP.Position)
+                    Hum:MoveTo(HRP.Position) -- ឈប់រត់
                     Status.Text = "Stealing: "..SelectedEggObj.Name
                     
                     for _, v in pairs(SelectedEggObj:GetDescendants()) do
@@ -261,12 +292,7 @@ task.spawn(function()
                     
                     task.wait(0.5)
                     
-                    Status.Text = "Running back..."
-                    Hum.WalkSpeed = RunSpeed
-                    local backPos = HRP.Position + (HRP.Position - targetPos).Unit * 50
-                    Hum:MoveTo(backPos)
-                    task.wait(0.5)
-                    
+                    -- រត់ត្រឡប់មកវិញឬរកពងថ្មី
                     local eggs = ScanMapEggs()
                     if #eggs > 0 then SelectedEggObj = eggs[1].Model else SelectedEggObj = nil end
                 end
